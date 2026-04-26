@@ -2,7 +2,7 @@
 	<div class="min-h-dvh bg-gradient-to-br from-stone-100 via-amber-50/40 to-stone-200 px-4 py-6 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950">
 		<div class="mx-auto max-w-3xl">
 			<h1 class="mb-4 text-3xl font-bold text-amber-950 dark:text-amber-100">
-				自訂朗讀 Demo
+				自訂朗讀
 			</h1>
 
 			<section
