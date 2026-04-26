@@ -126,10 +126,10 @@ function startTimer() {
 	}, 1000)
 }
 
-async function speak() {
+async function speakText(text: string) {
 	if (!voicePlaybackAvailable.value || typeof window === 'undefined' || !window.speechSynthesis) return
 	const voices = await getVoicesAsync()
-	const utterance = new SpeechSynthesisUtterance(question.value.correct.name)
+	const utterance = new SpeechSynthesisUtterance(text)
 	utterance.lang = 'zh-TW'
 	utterance.rate = 0.85
 	const voice = getPreferredZhTwFemaleVoice(voices)
@@ -141,6 +141,10 @@ async function speak() {
 	window.speechSynthesis.speak(utterance)
 }
 
+async function speak() {
+	await speakText(question.value.correct.name)
+}
+
 function choose(station: Station) {
 	if (selected.value !== null || timeUp.value) return
 	selected.value = station
@@ -148,6 +152,7 @@ function choose(station: Station) {
 	if (station.name === question.value.correct.name) {
 		score.value++
 		streak.value++
+		speakText('答對了')
 		if (streak.value > 0 && streak.value % 5 === 0) {
 			showReward.value = true
 		}
