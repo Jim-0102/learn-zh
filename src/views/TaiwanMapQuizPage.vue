@@ -99,6 +99,7 @@ function startListening() {
 }
 
 const voiceEnabled = ref(true)
+const voiceInput = ref(false)
 const timedMode = ref(false)
 const timeLeft = ref(60)
 const timeUp = ref(false)
@@ -214,7 +215,12 @@ onBeforeUnmount(() => { stopTimer(); stopListening() })
 				<input type="checkbox" v-model="timedMode" class="accent-emerald-500" />
 				⏱ 一分鐘答題
 			</label>
+			<label class="flex cursor-pointer items-center gap-1.5">
+				<input type="checkbox" v-model="voiceInput" class="accent-violet-500" />
+				🎤 語音輸入
+			</label>
 		</div>
+		<p v-if="voiceInput" class="mb-3 text-xs text-zinc-400 dark:text-zinc-500">建議使用 Chrome / Edge 瀏覽器</p>
 
 		<div class="mb-6 flex flex-wrap justify-center gap-5 text-sm text-zinc-700 dark:text-zinc-300">
 			<span>得分：<strong>{{ score }}</strong></span>
@@ -290,7 +296,7 @@ onBeforeUnmount(() => { stopTimer(); stopListening() })
 					🔊 播放題目
 				</button>
 				<button
-					v-if="srSupported"
+					v-if="voiceInput && srSupported"
 					type="button"
 					class="rounded-lg border border-stone-300 bg-transparent px-4 py-1.5 text-base text-zinc-800 transition hover:border-violet-500/80 disabled:cursor-not-allowed disabled:opacity-45 dark:border-zinc-600 dark:text-zinc-200"
 					:disabled="listening || selected !== null || timeUp"
