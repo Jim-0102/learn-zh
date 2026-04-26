@@ -88,6 +88,11 @@ const router = createRouter({
       component: () => import('../views/BannanLineQuizPage.vue'),
     },
     {
+      path: '/taiwan-map-quiz',
+      name: 'taiwan-map-quiz',
+      component: () => import('../views/TaiwanMapQuizPage.vue'),
+    },
+    {
       path: '/mrt-quiz',
       name: 'mrt-quiz',
       component: () => import('../views/MrtQuizPage.vue'),
