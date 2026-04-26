@@ -306,7 +306,6 @@ async function speakOptionsSequentially() {
   replayBusy.value = true
   window.speechSynthesis.cancel()
 
-  const prompt = '這個站叫什麼名字？'
   const opts = currentOptions.value
   let i = 0
 
@@ -327,11 +326,7 @@ async function speakOptionsSequentially() {
     window.speechSynthesis.speak(u)
   }
 
-  const intro = attachUtterance(prompt, speechRate.value, () => {
-    if (sessionId !== speakSessionId) return
-    window.setTimeout(speakNextOption, 180)
-  })
-  window.speechSynthesis.speak(intro)
+  speakNextOption()
 }
 
 function speakStationLabel(name: string) {
