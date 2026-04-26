@@ -369,6 +369,7 @@ const labelFlashName = ref<string | null>(null)
 const pool = ref<Station[]>(buildPool())
 const current = ref(0)
 const score = ref(0)
+const roundScore = ref(0)
 const answered = ref(false)
 const history = ref<{ station: string; correct: boolean }[]>([])
 const firstQ = pool.value[0]
@@ -542,12 +543,12 @@ const showQuiz = computed(
 )
 
 const resultPercent = computed(() =>
-  Math.round((score.value / questionCount.value) * 100),
+  Math.round((roundScore.value / questionCount.value) * 100),
 )
 
 const resultMessage = computed(() => {
   const pct = resultPercent.value
-  const s = score.value
+  const s = roundScore.value
   if (s === questionCount.value) return '完美！全部答對！🎉'
   if (pct >= 80) return '太棒了！非常熟練！'
   if (pct >= 60) return '不錯喔！繼續加油！'
@@ -559,7 +560,7 @@ function initGame() {
   stopTimer()
   pool.value = buildPool()
   current.value = 0
-  score.value = 0
+  roundScore.value = 0
   answered.value = false
   history.value = []
   if (timedMode.value) startTimer()
@@ -595,6 +596,7 @@ function chooseOption(name: string) {
   const isRight = name === correct
   if (isRight) {
     score.value++
+    roundScore.value++
     window.setTimeout(() => launchFireworks(), 100)
   }
   history.value.push({ station: correct, correct: isRight })
@@ -628,7 +630,7 @@ function nextQuestion() {
     stopTimer()
     window.setTimeout(() => {
       speakText(
-        `遊戲結束！你答對了 ${score.value} 題，答對率 ${resultPercent.value} 百分比。${resultMessage.value}`,
+        `遊戲結束！你答對了 ${roundScore.value} 題，答對率 ${resultPercent.value} 百分比。${resultMessage.value}`,
       )
     }, 300)
     return
@@ -1093,7 +1095,7 @@ watch(fireworksCanvas, (c) => {
 						class="text-[40px] font-bold leading-none"
 						style="font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif"
 					>
-						{{ score }}
+						{{ roundScore }}
 					</div>
 					<div class="text-[13px] opacity-80">/ {{ questionCount }} 題</div>
 				</div>
