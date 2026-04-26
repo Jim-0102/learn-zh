@@ -397,6 +397,10 @@ let fwRaf: number | null = null
 let speakSessionId = 0
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
+const timedMode = ref(false)
+const timeLeft = ref(60)
+let timerId: ReturnType<typeof window.setInterval> | null = null
+
 async function refreshZhVoice() {
   if (!ttsSupported) return
   const voices = await getVoicesAsync()
@@ -408,6 +412,26 @@ function stopSpeech() {
   if (ttsSupported) window.speechSynthesis.cancel()
   speakingOptionIndex.value = null
   replayBusy.value = false
+}
+
+function stopTimer() {
+  if (timerId !== null) {
+    window.clearInterval(timerId)
+    timerId = null
+  }
+}
+
+function startTimer() {
+  stopTimer()
+  timeLeft.value = 60
+  timerId = window.setInterval(() => {
+    timeLeft.value--
+    if (timeLeft.value <= 0) {
+      stopTimer()
+      stopSpeech()
+      current.value = questionCount.value
+    }
+  }, 1000)
 }
 
 function attachUtterance(
@@ -532,11 +556,13 @@ const resultMessage = computed(() => {
 
 function initGame() {
   stopSpeech()
+  stopTimer()
   pool.value = buildPool()
   current.value = 0
   score.value = 0
   answered.value = false
   history.value = []
+  if (timedMode.value) startTimer()
   prepareQuestion()
 }
 
@@ -599,6 +625,7 @@ function nextQuestion() {
   current.value++
   wrongPick.value = null
   if (current.value >= questionCount.value) {
+    stopTimer()
     window.setTimeout(() => {
       speakText(
         `遊戲結束！你答對了 ${score.value} 題，答對率 ${resultPercent.value} 百分比。${resultMessage.value}`,
@@ -650,6 +677,15 @@ watch(voiceEnabled, (on) => {
   if (!on) stopSpeech()
 })
 
+watch(timedMode, (on) => {
+  if (on) {
+    if (showQuiz.value) startTimer()
+  } else {
+    stopTimer()
+    timeLeft.value = 60
+  }
+})
+
 watch(voicePlaybackBlocked, (blocked) => {
   if (blocked) {
     voiceEnabled.value = false
@@ -696,6 +732,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopSpeech()
+  stopTimer()
   if (ttsSupported) {
     window.speechSynthesis.removeEventListener('voiceschanged', refreshZhVoice)
   }
@@ -830,14 +867,36 @@ watch(fireworksCanvas, (c) => {
 					{{ currentLine.subtitle }}
 				</div>
 			</div>
-			<div class="ml-auto shrink-0 text-right">
-				<div
-					class="text-2xl font-bold leading-none sm:text-[28px]"
-					style="font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif"
+			<div class="ml-auto flex shrink-0 items-center gap-4">
+				<Transition
+					enter-active-class="transition duration-200 ease-out"
+					enter-from-class="opacity-0 scale-90"
+					enter-to-class="opacity-100 scale-100"
+					leave-active-class="transition duration-150 ease-in"
+					leave-from-class="opacity-100 scale-100"
+					leave-to-class="opacity-0 scale-90"
 				>
-					{{ score }}
+					<div v-if="timedMode && showQuiz" class="text-right">
+						<div
+							class="text-2xl font-bold leading-none sm:text-[28px]"
+							:class="timeLeft <= 10 ? 'animate-pulse text-yellow-300' : ''"
+							style="font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif"
+						>
+							{{ String(Math.floor(timeLeft / 60)).padStart(2, '0') }}:{{ String(timeLeft % 60).padStart(2, '0') }}
+						</div>
+						<div class="text-[11px] opacity-75">剩餘時間</div>
+					</div>
+				</Transition>
+				<div v-if="timedMode && showQuiz" class="h-8 w-px bg-white/30" />
+				<div class="text-right">
+					<div
+						class="text-2xl font-bold leading-none sm:text-[28px]"
+						style="font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif"
+					>
+						{{ score }}
+					</div>
+					<div class="text-[11px] opacity-75">答對題數</div>
 				</div>
-				<div class="text-[11px] opacity-75">答對題數</div>
 			</div>
 		</div>
 		<div class="h-1.5 bg-[var(--blue-dark)]">
@@ -859,6 +918,17 @@ watch(fireworksCanvas, (c) => {
 						{{ line.title }}
 					</option>
 				</select>
+				<label
+					class="ml-auto flex cursor-pointer select-none items-center gap-1.5"
+					:class="timedMode ? 'font-medium text-[var(--blue-dark)] dark:text-sky-200' : ''"
+				>
+					<input
+						v-model="timedMode"
+						type="checkbox"
+						class="h-[15px] w-[15px] cursor-pointer accent-[var(--blue)]"
+					/>
+					⏱ 一分鐘答題
+				</label>
 			</div>
 			<div
 				v-if="!ttsSupported || voicePlaybackBlocked"
