@@ -93,7 +93,21 @@ async function speakText(text: string, lang = 'zh-TW') {
 }
 
 async function speak() {
-	await speakText(question.value.correct.name)
+	if (!voicePlaybackAvailable.value || typeof window === 'undefined' || !window.speechSynthesis) return
+	const voices = await getVoicesAsync()
+	const voice = getPreferredZhTwFemaleVoice(voices)
+	window.speechSynthesis.cancel()
+	for (const region of question.value.choices) {
+		await new Promise<void>((resolve) => {
+			const utt = new SpeechSynthesisUtterance(region.name)
+			utt.lang = 'zh-TW'
+			utt.rate = 0.85
+			if (voice) { utt.voice = voice; utt.lang = voice.lang }
+			utt.onend = () => resolve()
+			utt.onerror = () => resolve()
+			window.speechSynthesis.speak(utt)
+		})
+	}
 }
 
 function regionFill(id: string): string {
