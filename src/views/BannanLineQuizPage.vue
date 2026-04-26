@@ -740,7 +740,7 @@ watch(fireworksCanvas, (c) => {
 					@click="speakOptionsSequentially"
 				>
 					<span class="text-[15px] leading-none">🔈</span>
-					再聽一次
+					播報題目
 				</button>
 				<div class="flex w-full items-center gap-1.5 text-[12px] text-slate-500 sm:ml-auto sm:w-auto dark:text-zinc-400">
 					速度：
