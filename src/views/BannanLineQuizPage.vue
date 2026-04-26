@@ -92,6 +92,33 @@ const CIRCULAR_STATIONS: Station[] = [
   { id: 'Y20', name: '新北產業園區', hint: '可轉乘機場捷運，環狀線北端終點站' },
 ]
 
+const WENHU_STATIONS: Station[] = [
+  { id: 'BR01', name: '動物園', hint: '文湖線南端起點站，台北市立動物園正門口' },
+  { id: 'BR02', name: '木柵', hint: '木柵區生活圈，鄰近政治大學後門' },
+  { id: 'BR03', name: '萬芳社區', hint: '文山區住宅社區，萬芳路沿線' },
+  { id: 'BR04', name: '萬芳醫院', hint: '緊鄰萬芳醫院，醫療資源豐富' },
+  { id: 'BR05', name: '辛亥', hint: '文山區辛亥路沿線，住宅與商業混合' },
+  { id: 'BR06', name: '麟光', hint: '大安與文山交界，鄰近麟光橋' },
+  { id: 'BR07', name: '六張犁', hint: '大安區南端，六張犁公墓附近商住混合區' },
+  { id: 'BR08', name: '科技大樓', hint: '大安區，基隆路科技公司聚集地' },
+  { id: 'BR09', name: '大安', hint: '可轉乘淡水信義線（R05），大安區交通要站' },
+  { id: 'BR10', name: '忠孝復興', hint: '可轉乘板南線（BL15），東區百貨商圈核心' },
+  { id: 'BR11', name: '南京復興', hint: '中山區，南京東路與復興北路交口商業區' },
+  { id: 'BR12', name: '中山國中', hint: '中山區，鄰近中山國中與松山文創園區' },
+  { id: 'BR13', name: '松山機場', hint: '台北松山機場地下站，國內外航班轉乘點' },
+  { id: 'BR14', name: '大直', hint: '中山區北側，美麗華百樂園附近' },
+  { id: 'BR15', name: '劍南路', hint: '劍潭山北麓，鄰近劍南路商辦聚落' },
+  { id: 'BR16', name: '西湖', hint: '內湖區，西湖市場與住商混合區' },
+  { id: 'BR17', name: '港墘', hint: '內湖科技園區邊緣，商業辦公大樓林立' },
+  { id: 'BR18', name: '文德', hint: '內湖文德路沿線，以住宅區為主' },
+  { id: 'BR19', name: '內湖', hint: '內湖區行政與生活中心，鄰近內湖市場' },
+  { id: 'BR20', name: '大湖公園', hint: '鄰近大湖公園，湖光山色的休閒景點' },
+  { id: 'BR21', name: '葫洲', hint: '內湖東側，葫洲山丘旁的住宅區' },
+  { id: 'BR22', name: '東湖', hint: '內湖東端，東湖商圈與社區生活圈' },
+  { id: 'BR23', name: '南港軟體園區', hint: '南港軟體工業園區，IT產業聚集' },
+  { id: 'BR24', name: '南港展覽館', hint: '可轉乘板南線（BL23），台北南港展覽館所在地' },
+]
+
 const METRO_LINES: MetroLine[] = [
   {
     key: 'bannan',
@@ -132,6 +159,19 @@ const METRO_LINES: MetroLine[] = [
     },
     stations: CIRCULAR_STATIONS,
   },
+  {
+    key: 'wenhu',
+    badge: 'BR',
+    title: '文湖線 站名學習',
+    subtitle: 'Wenhu Line · 認識 24 個車站',
+    theme: {
+      color: '#c07030',
+      colorDark: '#8a4e18',
+      colorLight: '#fdf3e7',
+      colorMid: '#f2d5a8',
+    },
+    stations: WENHU_STATIONS,
+  },
 ]
 
 const TOTAL_Q = 15
@@ -143,7 +183,7 @@ const OPT_PALETTES = [
 	'bg-rose-100 border-rose-300 text-rose-950 hover:not(:disabled):bg-rose-200 hover:not(:disabled):border-rose-400',
 ] as const
 
-const selectedLineKey = ref<string>('bannan')
+const selectedLineKey = ref<'bannan' | 'tamshui' | 'circular' | 'wenhu'>('bannan')
 const route = useRoute()
 const router = useRouter()
 const currentLine = computed(
@@ -158,15 +198,17 @@ const lineThemeStyle = computed<Record<string, string>>(() => ({
   '--blue-mid': currentLine.value.theme.colorMid,
 }))
 
-function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' {
+function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' | 'wenhu' {
   if (value === 'tamshui') return 'tamshui'
   if (value === 'circular') return 'circular'
+  if (value === 'wenhu') return 'wenhu'
   return 'bannan'
 }
 
-function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' {
+function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' | 'wenhu' {
   if (path.startsWith('/tamshui-line-quiz')) return 'tamshui'
   if (path.startsWith('/circular-line-quiz')) return 'circular'
+  if (path.startsWith('/wenhu-line-quiz')) return 'wenhu'
   if (path.startsWith('/line-quiz/')) {
     const seg = path.split('/')[2] ?? ''
     return normalizeLineKey(seg)
@@ -174,10 +216,11 @@ function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' {
   return 'bannan'
 }
 
-function pathForLine(key: 'bannan' | 'tamshui' | 'circular') {
+function pathForLine(key: 'bannan' | 'tamshui' | 'circular' | 'wenhu') {
   if (route.path.startsWith('/line-quiz/')) return `/line-quiz/${key}`
   if (key === 'tamshui') return '/tamshui-line-quiz'
   if (key === 'circular') return '/circular-line-quiz'
+  if (key === 'wenhu') return '/wenhu-line-quiz'
   return '/bannan-line-quiz'
 }
 
