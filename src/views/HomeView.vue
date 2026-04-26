@@ -27,6 +27,12 @@ const features = [
 		desc: '輸入任何華文文字，立即聆聽標準發音。反覆練習、聽說並進，讓口語越來越自然。',
 	},
 	{
+		to: '/taiwan-map-quiz',
+		emoji: '🗺️',
+		title: '台灣縣市地圖測驗',
+		desc: '地圖上的紫色是哪個縣市？聽語音選答案，認識台灣各縣市地理位置。',
+	},
+	{
 		href: 'https://www.moedict.tw',
 		emoji: '📚',
 		title: '萌典',
