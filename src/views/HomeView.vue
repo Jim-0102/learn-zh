@@ -33,12 +33,6 @@ const features = [
 		desc: '地圖上的紫色是哪個縣市？聽語音選答案，認識台灣各縣市地理位置。',
 	},
 	{
-		href: 'https://www.moedict.tw',
-		emoji: '📚',
-		title: '萌典',
-		desc: '查詢華文單字、成語、詞組的釋義與用法。',
-	},
-	{
 		to: '/bannan-line-quiz',
 		emoji: '🚇',
 		title: '站名學習',
@@ -55,6 +49,12 @@ const features = [
 		emoji: '🪙',
 		title: '兌幣練習',
 		desc: '拖拉硬幣到兌換區，練習硬幣面額換算，培養日常生活的數感與金錢概念。',
+	},
+	{
+		href: 'https://www.moedict.tw',
+		emoji: '📚',
+		title: '萌典',
+		desc: '查詢華文單字、成語、詞組的釋義與用法。',
 	},
 ]
 
