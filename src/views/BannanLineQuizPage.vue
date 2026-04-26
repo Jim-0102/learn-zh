@@ -171,6 +171,13 @@ const ZHONGHE_STATIONS: Station[] = [
   { id: 'O54', name: '蘆洲', hint: '蘆洲支線端點站，蘆洲區行政中心附近' },
 ]
 
+const MAOKONG_STATIONS: Station[] = [
+  { id: 'MK01', name: '動物園', hint: '纜車北端起點，緊鄰台北市立動物園正門，可轉乘文湖線（BR01）' },
+  { id: 'MK02', name: '動物園南', hint: '動物園南側站，可由此進入動物園非洲區一帶' },
+  { id: 'MK03', name: '指南宮', hint: '位於木柵山區，旁有香火鼎盛的指南宮道教廟宇' },
+  { id: 'MK04', name: '貓空', hint: '纜車南端終點，貓空茶園與景觀餐廳聚集，台北著名茶文化勝地' },
+]
+
 const METRO_LINES: MetroLine[] = [
   {
     key: 'bannan',
@@ -250,6 +257,19 @@ const METRO_LINES: MetroLine[] = [
     },
     stations: ZHONGHE_STATIONS,
   },
+  {
+    key: 'maokong',
+    badge: 'MK',
+    title: '貓空纜車 站名學習',
+    subtitle: 'Maokong Gondola · 認識 4 個車站',
+    theme: {
+      color: '#2e7d6e',
+      colorDark: '#1b5248',
+      colorLight: '#e0f5f2',
+      colorMid: '#8ed4c8',
+    },
+    stations: MAOKONG_STATIONS,
+  },
 ]
 
 const TOTAL_Q = 15
@@ -261,7 +281,7 @@ const OPT_PALETTES = [
 	'bg-rose-100 border-rose-300 text-rose-950 hover:not(:disabled):bg-rose-200 hover:not(:disabled):border-rose-400',
 ] as const
 
-const selectedLineKey = ref<'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe'>('bannan')
+const selectedLineKey = ref<'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' | 'maokong'>('bannan')
 const route = useRoute()
 const router = useRouter()
 const currentLine = computed(
@@ -276,21 +296,23 @@ const lineThemeStyle = computed<Record<string, string>>(() => ({
   '--blue-mid': currentLine.value.theme.colorMid,
 }))
 
-function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' {
+function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' | 'maokong' {
   if (value === 'tamshui') return 'tamshui'
   if (value === 'circular') return 'circular'
   if (value === 'wenhu') return 'wenhu'
   if (value === 'songshan') return 'songshan'
   if (value === 'zhonghe') return 'zhonghe'
+  if (value === 'maokong') return 'maokong'
   return 'bannan'
 }
 
-function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' {
+function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' | 'maokong' {
   if (path.startsWith('/tamshui-line-quiz')) return 'tamshui'
   if (path.startsWith('/circular-line-quiz')) return 'circular'
   if (path.startsWith('/wenhu-line-quiz')) return 'wenhu'
   if (path.startsWith('/songshan-line-quiz')) return 'songshan'
   if (path.startsWith('/zhonghe-line-quiz')) return 'zhonghe'
+  if (path.startsWith('/maokong-gondola-quiz')) return 'maokong'
   if (path.startsWith('/line-quiz/')) {
     const seg = path.split('/')[2] ?? ''
     return normalizeLineKey(seg)
@@ -298,13 +320,14 @@ function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' |
   return 'bannan'
 }
 
-function pathForLine(key: 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe') {
+function pathForLine(key: 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' | 'maokong') {
   if (route.path.startsWith('/line-quiz/')) return `/line-quiz/${key}`
   if (key === 'tamshui') return '/tamshui-line-quiz'
   if (key === 'circular') return '/circular-line-quiz'
   if (key === 'wenhu') return '/wenhu-line-quiz'
   if (key === 'songshan') return '/songshan-line-quiz'
   if (key === 'zhonghe') return '/zhonghe-line-quiz'
+  if (key === 'maokong') return '/maokong-gondola-quiz'
   return '/bannan-line-quiz'
 }
 

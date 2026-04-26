@@ -78,7 +78,12 @@ const router = createRouter({
       component: () => import('../views/BannanLineQuizPage.vue'),
     },
     {
-      path: '/line-quiz/:lineKey(bannan|tamshui|circular|wenhu|songshan|zhonghe)',
+      path: '/maokong-gondola-quiz',
+      name: 'maokong-gondola-quiz',
+      component: () => import('../views/BannanLineQuizPage.vue'),
+    },
+    {
+      path: '/line-quiz/:lineKey(bannan|tamshui|circular|wenhu|songshan|zhonghe|maokong)',
       name: 'line-quiz',
       component: () => import('../views/BannanLineQuizPage.vue'),
     },
