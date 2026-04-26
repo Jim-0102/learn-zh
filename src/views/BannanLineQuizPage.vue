@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSpeechAvailability } from '@/composables/useSpeechAvailability'
 import { getPreferredZhTwFemaleVoice, getVoicesAsync } from '@/utils/speechVoice'
 
-type Station = { id: string; name: string; pronunciation?: string; hint: string }
+type Station = { id: string; name: string; pronunciation?: string; hint: string; segmentBreak?: true }
 type MetroLine = {
   key: string
   badge: string
@@ -123,7 +123,7 @@ const SONGSHAN_STATIONS: Station[] = [
   { id: 'G01', name: '新店', hint: '松山新店線南端起點，新店區行政與商業中心' },
   { id: 'G02', name: '新店區公所', hint: '新店區公所所在地，鄰近新店溪畔' },
   { id: 'G03', name: '七張', hint: '可轉往小碧潭支線，七張路周邊住宅區' },
-  { id: 'G03A', name: '小碧潭', hint: '支線終點站，碧潭吊橋與碧潭風景區入口' },
+  { id: 'G03A', name: '小碧潭', hint: '支線終點站，碧潭吊橋與碧潭風景區入口', segmentBreak: true },
   { id: 'G04', name: '大坪林', hint: '可轉乘環狀線（Y07），新店商業發展新區' },
   { id: 'G05', name: '景美', hint: '景美夜市與景美溪畔，文山區著名生活圈' },
   { id: 'G06', name: '萬隆', hint: '文山區萬隆商圈，鄰近臺灣科技大學' },
@@ -163,7 +163,7 @@ const ZHONGHE_STATIONS: Station[] = [
   { id: 'O18', name: '新莊', hint: '新莊區行政與商業中心，人口密集區' },
   { id: 'O19', name: '輔大', hint: '鄰近輔仁大學，通勤與學生族群聚集' },
   { id: 'O20', name: '丹鳳', hint: '新莊東北端，丹鳳路沿線住宅區' },
-  { id: 'O21', name: '迴龍', hint: '迴龍端點站，新莊最北端，鄰近桃園交界' },
+  { id: 'O21', name: '迴龍', hint: '迴龍端點站，新莊最北端，鄰近桃園交界', segmentBreak: true },
   { id: 'O50', name: '三重國小', hint: '三重北端，三重國小附近住宅區' },
   { id: 'O51', name: '三和國中', hint: '三重與蘆洲交界，鄰近三和國中' },
   { id: 'O52', name: '徐匯中學', hint: '蘆洲南端，天主教徐匯高中附近' },
@@ -525,10 +525,20 @@ function speakFeedback(isRight: boolean, name: string) {
 const lineMapSlice = computed(() => {
   const q = pool.value[current.value]
   if (!q) return [] as { station: Station; globalIdx: number }[]
-  const targetIdx = currentStations.value.findIndex((s) => s.id === q.id)
+  const stations = currentStations.value
+  const targetIdx = stations.findIndex((s) => s.id === q.id)
   const start = Math.max(0, targetIdx - 2)
-  const end = Math.min(currentStations.value.length - 1, targetIdx + 2)
-  return currentStations.value.slice(start, end + 1).map((station, i) => ({
+  // Don't extend right past a segment break: if target is a branch terminal,
+  // or if any station between target and end is a break boundary, clip there.
+  let end = Math.min(stations.length - 1, targetIdx + 2)
+  if (stations[targetIdx]?.segmentBreak) {
+    end = targetIdx
+  } else {
+    for (let i = targetIdx + 1; i <= end; i++) {
+      if (stations[i - 1]?.segmentBreak) { end = i - 1; break }
+    }
+  }
+  return stations.slice(start, end + 1).map((station, i) => ({
     station,
     globalIdx: start + i,
   }))
@@ -1019,7 +1029,7 @@ watch(fireworksCanvas, (c) => {
 										terminal:
 											(i === 0 && globalIdx === 0) ||
 											(i === lineMapSlice.length - 1 &&
-												globalIdx === currentStations.length - 1),
+												(globalIdx === currentStations.length - 1 || !!s.segmentBreak)),
 										target: s.id === pool[current]!.id,
 									}"
 								/>
