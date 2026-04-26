@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useSpeechAvailability } from '@/composables/useSpeechAvailability'
 import { getPreferredZhTwFemaleVoice, getVoicesAsync } from '../utils/speechVoice'
 
@@ -103,6 +103,29 @@ const showReward = ref(false)
 const totalAnswered = ref(0)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
+const voiceEnabled = ref(true)
+const timedMode = ref(false)
+const timeLeft = ref(60)
+const timeUp = ref(false)
+let timerId: ReturnType<typeof window.setInterval> | null = null
+
+function stopTimer() {
+	if (timerId !== null) { window.clearInterval(timerId); timerId = null }
+}
+
+function startTimer() {
+	stopTimer()
+	timeLeft.value = 60
+	timeUp.value = false
+	timerId = window.setInterval(() => {
+		timeLeft.value--
+		if (timeLeft.value <= 0) {
+			stopTimer()
+			timeUp.value = true
+		}
+	}, 1000)
+}
+
 async function speak() {
 	if (!voicePlaybackAvailable.value || typeof window === 'undefined' || !window.speechSynthesis) return
 	const voices = await getVoicesAsync()
@@ -119,7 +142,7 @@ async function speak() {
 }
 
 function choose(station: Station) {
-	if (selected.value !== null) return
+	if (selected.value !== null || timeUp.value) return
 	selected.value = station
 	totalAnswered.value++
 	if (station.name === question.value.correct.name) {
@@ -136,6 +159,7 @@ function choose(station: Station) {
 function next() {
 	question.value = newQuestion()
 	selected.value = null
+	if (voiceEnabled.value) nextTick(() => speak())
 }
 
 function dismissReward() {
@@ -143,9 +167,30 @@ function dismissReward() {
 	next()
 }
 
+function resetGame() {
+	timeUp.value = false
+	score.value = 0
+	streak.value = 0
+	totalAnswered.value = 0
+	selected.value = null
+	question.value = newQuestion()
+	if (timedMode.value) startTimer()
+	else if (voiceEnabled.value) nextTick(() => speak())
+}
+
+watch(timedMode, (on) => {
+	if (on) startTimer()
+	else { stopTimer(); timeLeft.value = 60; timeUp.value = false }
+})
+
 onMounted(() => {
 	activePool = loadActivePool()
 	question.value = newQuestion()
+	if (voiceEnabled.value) nextTick(() => speak())
+})
+
+onBeforeUnmount(() => {
+	stopTimer()
 })
 </script>
 
@@ -159,10 +204,21 @@ onMounted(() => {
 		</p>
 		<RouterLink
 			to="/mrt-quiz/editor"
-			class="mb-6 inline-block text-xs text-zinc-400 underline-offset-2 transition hover:text-emerald-600 hover:underline dark:text-zinc-500 dark:hover:text-emerald-400"
+			class="mb-4 inline-block text-xs text-zinc-400 underline-offset-2 transition hover:text-emerald-600 hover:underline dark:text-zinc-500 dark:hover:text-emerald-400"
 		>
 			⚙ 自訂題目
 		</RouterLink>
+
+		<div class="mb-5 flex flex-wrap items-center justify-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+			<label class="flex cursor-pointer items-center gap-1.5">
+				<input type="checkbox" v-model="voiceEnabled" class="accent-emerald-500" />
+				🔊 語音播放
+			</label>
+			<label class="flex cursor-pointer items-center gap-1.5">
+				<input type="checkbox" v-model="timedMode" class="accent-emerald-500" />
+				⏱ 一分鐘答題
+			</label>
+		</div>
 
 		<div
 			v-if="showReward"
@@ -188,10 +244,36 @@ onMounted(() => {
 			</div>
 		</div>
 
+		<div
+			v-if="timeUp"
+			class="fixed inset-0 z-[100] flex items-center justify-center bg-black/55"
+		>
+			<div
+				class="w-[90%] max-w-sm rounded-3xl bg-white p-10 text-center dark:bg-zinc-900"
+			>
+				<div class="mb-3 text-6xl">⏰</div>
+				<h2 class="mb-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">時間到！</h2>
+				<p class="mb-1 text-zinc-600 dark:text-zinc-300">本輪答對 <strong>{{ score }}</strong> 題</p>
+				<p class="mb-6 text-zinc-600 dark:text-zinc-300">共作答 <strong>{{ totalAnswered }}</strong> 題</p>
+				<button
+					type="button"
+					class="cursor-pointer rounded-xl border-0 bg-emerald-500 px-7 py-2.5 text-base font-semibold text-white transition hover:opacity-90"
+					@click="resetGame"
+				>
+					再玩一次
+				</button>
+			</div>
+		</div>
+
 		<div class="mb-8 flex flex-wrap justify-center gap-6 text-sm text-zinc-700 dark:text-zinc-300">
 			<span>得分：<strong>{{ score }}</strong></span>
 			<span>連續答對：<strong>{{ streak }}</strong></span>
 			<span>作答：<strong>{{ totalAnswered }}</strong> 題</span>
+			<Transition name="fade">
+				<span v-if="timedMode" :class="timeLeft <= 10 ? 'animate-pulse font-bold text-red-500' : ''">
+					⏱ <strong>{{ timeLeft }}</strong> 秒
+				</span>
+			</Transition>
 		</div>
 
 		<div
@@ -203,7 +285,7 @@ onMounted(() => {
 				:disabled="voicePlaybackBlocked"
 				@click="speak"
 			>
-				🔊 再聽一次
+				🔊 播報題目
 			</button>
 			<p class="mb-5 text-base text-zinc-700 dark:text-zinc-300">
 				你聽到的是哪一個捷運站？
