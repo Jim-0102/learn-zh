@@ -6,6 +6,7 @@ import { getPreferredZhTwFemaleVoice, getVoicesAsync } from '../utils/speechVoic
 interface Station {
 	name: string
 	line: string
+	english?: string
 }
 
 const STORAGE_STATIONS = 'mrt-quiz-custom-stations'
@@ -13,55 +14,74 @@ const STORAGE_USE_CUSTOM = 'mrt-quiz-use-custom'
 
 const DEFAULT_STATIONS: Station[] = [
 	// 板南線
-	...['頂埔','永寧','土城','海山','亞東醫院','府中','板橋','新埔','江子翠',
-		'龍山寺','西門','台北車站','善導寺','忠孝新生','忠孝復興','忠孝敦化',
-		'國父紀念館','市政府','永春','後山埤','昆陽','南港','南港展覽館']
-		.map(name => ({ name, line: '板南線' })),
+	...([
+		['頂埔','Dingpu'],['永寧','Yongning'],['土城','Tucheng'],['海山','Haishan'],
+		['亞東醫院','Far Eastern Hospital'],['府中','Fuzhong'],['板橋','Banqiao'],
+		['新埔','Xinpu'],['江子翠','Jiangzicui'],['龍山寺','Longshan Temple'],
+		['西門','Ximen'],['台北車站','Taipei Main Station'],['善導寺','Shandao Temple'],
+		['忠孝新生','Zhongxiao Xinsheng'],['忠孝復興','Zhongxiao Fuxing'],
+		['忠孝敦化','Zhongxiao Dunhua'],['國父紀念館','Sun Yat-Sen Memorial Hall'],
+		['市政府','Taipei City Hall'],['永春','Yongchun'],['後山埤','Houshanpi'],
+		['昆陽','Kunyang'],['南港','Nangang'],['南港展覽館','Taipei Nangang Exhibition Center'],
+	] as [string,string][]).map(([name,english]) => ({ name, english, line: '板南線' })),
 	// 淡水信義線
-	...['淡水','紅樹林','竹圍','關渡','忠義','復興崗','北投','奇岩','唭哩岸',
-		'石牌','明德','芝山','士林','劍潭','圓山','民權西路','中山',
-		'台大醫院','中正紀念堂','東門','大安森林公園','大安','信義安和',
-		'台北101/世貿','象山']
-		.map(name => ({ name, line: '淡水信義線' })),
+	...([
+		['淡水','Tamsui'],['紅樹林','Hongshulin'],['竹圍','Zhuwei'],['關渡','Guandu'],
+		['忠義','Zhongyi'],['復興崗','Fuxinggang'],['北投','Beitou'],['奇岩','Qiyan'],
+		['唭哩岸','Qilian'],['石牌','Shipai'],['明德','Mingde'],['芝山','Zhishan'],
+		['士林','Shilin'],['劍潭','Jiantan'],['圓山','Yuanshan'],
+		['民權西路','Minquan W. Rd.'],['中山','Zhongshan'],['台大醫院','NTU Hospital'],
+		['中正紀念堂','Chiang Kai-Shek Memorial Hall'],['東門','Dongmen'],
+		['大安森林公園','Daan Park'],['大安','Daan'],['信義安和','Xinyi Anhe'],
+		['台北101/世貿','Taipei 101/World Trade Center'],['象山','Xiangshan'],
+	] as [string,string][]).map(([name,english]) => ({ name, english, line: '淡水信義線' })),
 	// 環狀線
-	...[
-		'大坪林',
-		'十四張',
-		'秀朗橋',
-		'景平',
-		'景安',
-		'中和',
-		'橋和',
-		'中原',
-		'板新',
-		'新埔民生',
-		'頭前庄',
-		'幸福',
-		'新北產業園區',
-	].map(name => ({ name, line: '環狀線' })),
+	...([
+		['大坪林','Dapinglin'],['十四張','Shisizhang'],['秀朗橋','Xiulang Bridge'],
+		['景平','Jingping'],['景安','Jingan'],['中和','Zhonghe'],['橋和','Qiaohe'],
+		['中原','Zhongyuan'],['板新','Banxin'],['新埔民生','Xinpu Minsheng'],
+		['頭前庄','Touqianzhuang'],['幸福','Xinfu'],['新北產業園區','New Taipei Industrial Park'],
+	] as [string,string][]).map(([name,english]) => ({ name, english, line: '環狀線' })),
 	// 文湖線
-	...[
-		'動物園','木柵','萬芳社區','萬芳醫院','辛亥','麟光','六張犁','科技大樓',
-		'大安','忠孝復興','南京復興','中山國中','松山機場','大直','劍南路',
-		'西湖','港墘','文德','內湖','大湖公園','葫洲','東湖','南港軟體園區','南港展覽館',
-	].map(name => ({ name, line: '文湖線' })),
+	...([
+		['動物園','Taipei Zoo'],['木柵','Muzha'],['萬芳社區','Wanfang Community'],
+		['萬芳醫院','Wanfang Hospital'],['辛亥','Xinhai'],['麟光','Linguang'],
+		['六張犁','Liuzhangli'],['科技大樓','Technology Building'],['大安','Daan'],
+		['忠孝復興','Zhongxiao Fuxing'],['南京復興','Nanjing Fuxing'],
+		['中山國中','Zhongshan Junior High School'],['松山機場','Songshan Airport'],
+		['大直','Dazhi'],['劍南路','Jiannan Rd.'],['西湖','Xihu'],['港墘','Gangqian'],
+		['文德','Wende'],['內湖','Neihu'],['大湖公園','Dahu Park'],['葫洲','Huzhou'],
+		['東湖','Donghu'],['南港軟體園區','Nangang Software Park'],
+		['南港展覽館','Taipei Nangang Exhibition Center'],
+	] as [string,string][]).map(([name,english]) => ({ name, english, line: '文湖線' })),
 	// 松山新店線
-	...[
-		'新店','新店區公所','七張','小碧潭','大坪林','景美','萬隆','公館',
-		'台電大樓','古亭','中正紀念堂','小南門','北門','中山','松江南京',
-		'南京復興','台北小巨蛋','南京三民','松山','南港',
-	].map(name => ({ name, line: '松山新店線' })),
+	...([
+		['新店','Xindian'],['新店區公所','Xindian District Office'],['七張','Qizhang'],
+		['小碧潭','Xiaobitan'],['大坪林','Dapinglin'],['景美','Jingmei'],['萬隆','Wanlong'],
+		['公館','Gongguan'],['台電大樓','Taipower Building'],['古亭','Guting'],
+		['中正紀念堂','Chiang Kai-Shek Memorial Hall'],['小南門','Xiaonanmen'],
+		['北門','Beimen'],['中山','Zhongshan'],['松江南京','Songjiang Nanjing'],
+		['南京復興','Nanjing Fuxing'],['台北小巨蛋','Taipei Arena'],
+		['南京三民','Nanjing Sanmin'],['松山','Songshan'],['南港','Nangang'],
+	] as [string,string][]).map(([name,english]) => ({ name, english, line: '松山新店線' })),
 	// 中和新蘆線
-	...[
-		'南勢角','景安','永安市場','頂溪','古亭','東門','忠孝新生','松江南京',
-		'行天宮','中山國小','民權西路','大橋頭','台北橋',
-		'菜寮','三重','先嗇宮','頭前庄','新莊','輔大','丹鳳','迴龍',
-		'三重國小','三和國中','徐匯中學','三民高中','蘆洲',
-	].map(name => ({ name, line: '中和新蘆線' })),
+	...([
+		['南勢角','Nanshijiao'],['景安','Jingan'],['永安市場','Yongan Market'],
+		['頂溪','Dingxi'],['古亭','Guting'],['東門','Dongmen'],
+		['忠孝新生','Zhongxiao Xinsheng'],['松江南京','Songjiang Nanjing'],
+		['行天宮','Xingtian Temple'],['中山國小','Zhongshan Elementary School'],
+		['民權西路','Minquan W. Rd.'],['大橋頭','Daqiaotou'],['台北橋','Taipei Bridge'],
+		['菜寮','Cailiao'],['三重','Sanchong'],['先嗇宮','Xianse Temple'],
+		['頭前庄','Touqianzhuang'],['新莊','Xinzhuang'],['輔大','Fu Jen University'],
+		['丹鳳','Danfeng'],['迴龍','Huilong'],['三重國小','Sanchong Elementary School'],
+		['三和國中','Sanhe Junior High School'],['徐匯中學','St. Ignatius High School'],
+		['三民高中','Sanmin Senior High School'],['蘆洲','Luzhou'],
+	] as [string,string][]).map(([name,english]) => ({ name, english, line: '中和新蘆線' })),
 	// 貓空纜車
-	...[
-		'動物園','動物園南','指南宮','貓空',
-	].map(name => ({ name, line: '貓空纜車' })),
+	...([
+		['動物園','Taipei Zoo Station'],['動物園南','Taipei Zoo South Station'],
+		['指南宮','Zhinan Temple Station'],['貓空','Maokong Station'],
+	] as [string,string][]).map(([name,english]) => ({ name, english, line: '貓空纜車' })),
 ]
 
 function loadActivePool(): Station[] {
@@ -104,6 +124,7 @@ const totalAnswered = ref(0)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
 const voiceEnabled = ref(true)
+const englishMode = ref(false)
 const timedMode = ref(false)
 const timeLeft = ref(60)
 const timeUp = ref(false)
@@ -126,23 +147,27 @@ function startTimer() {
 	}, 1000)
 }
 
-async function speakText(text: string) {
+async function speakText(text: string, lang: string = 'zh-TW') {
 	if (!voicePlaybackAvailable.value || typeof window === 'undefined' || !window.speechSynthesis) return
-	const voices = await getVoicesAsync()
 	const utterance = new SpeechSynthesisUtterance(text)
-	utterance.lang = 'zh-TW'
+	utterance.lang = lang
 	utterance.rate = 0.85
-	const voice = getPreferredZhTwFemaleVoice(voices)
-	if (voice) {
-		utterance.voice = voice
-		utterance.lang = voice.lang
+	if (lang === 'zh-TW') {
+		const voices = await getVoicesAsync()
+		const voice = getPreferredZhTwFemaleVoice(voices)
+		if (voice) {
+			utterance.voice = voice
+			utterance.lang = voice.lang
+		}
 	}
 	window.speechSynthesis.cancel()
 	window.speechSynthesis.speak(utterance)
 }
 
 async function speak() {
-	await speakText(question.value.correct.name)
+	const useEnglish = englishMode.value && !!question.value.correct.english
+	const text = useEnglish ? question.value.correct.english! : question.value.correct.name
+	await speakText(text, useEnglish ? 'en-US' : 'zh-TW')
 }
 
 function choose(station: Station) {
@@ -218,6 +243,10 @@ onBeforeUnmount(() => {
 			<label class="flex cursor-pointer items-center gap-1.5">
 				<input type="checkbox" v-model="voiceEnabled" class="accent-emerald-500" />
 				🔊 語音播放
+			</label>
+			<label class="flex cursor-pointer items-center gap-1.5">
+				<input type="checkbox" v-model="englishMode" class="accent-emerald-500" />
+				🔤 英文播報
 			</label>
 			<label class="flex cursor-pointer items-center gap-1.5">
 				<input type="checkbox" v-model="timedMode" class="accent-emerald-500" />
