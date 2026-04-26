@@ -59,6 +59,45 @@ const showReward = ref(false)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
 const speakingId = ref<string | null>(null)
+const listening = ref(false)
+const srSupported = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SR = any
+let recognition: SR = null
+
+function stopListening() {
+	if (recognition) { recognition.abort(); recognition = null }
+	listening.value = false
+}
+
+function startListening() {
+	if (selected.value !== null || timeUp.value) return
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const SRClass = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+	if (!SRClass) return
+	window.speechSynthesis?.cancel()
+	speakingId.value = null
+	stopListening()
+	recognition = new SRClass()
+	recognition.lang = 'zh-TW'
+	recognition.interimResults = false
+	recognition.maxAlternatives = 5
+	recognition.onstart = () => { listening.value = true }
+	recognition.onresult = (event: SR) => {
+		listening.value = false
+		for (let i = 0; i < event.results[0].length; i++) {
+			const spoken: string = event.results[0][i].transcript.trim()
+			const match = question.value.choices.find(r =>
+				r.name.includes(spoken) || spoken.includes(r.name)
+			)
+			if (match) { choose(match); return }
+		}
+	}
+	recognition.onerror = () => { listening.value = false }
+	recognition.onend = () => { listening.value = false }
+	recognition.start()
+}
+
 const voiceEnabled = ref(true)
 const timedMode = ref(false)
 const timeLeft = ref(60)
@@ -154,8 +193,11 @@ watch(timedMode, (on) => {
 	else { stopTimer(); timeLeft.value = 60; timeUp.value = false }
 })
 
-onMounted(() => { if (voiceEnabled.value) nextTick(() => speak()) })
-onBeforeUnmount(() => stopTimer())
+onMounted(() => {
+	srSupported.value = !!((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition)
+	if (voiceEnabled.value) nextTick(() => speak())
+})
+onBeforeUnmount(() => { stopTimer(); stopListening() })
 </script>
 
 <template>
@@ -238,14 +280,25 @@ onBeforeUnmount(() => stopTimer())
 				<path id="yunlin-county" :fill="regionFill('yunlin-county')" stroke="white" stroke-width="3" stroke-linejoin="round" d="M642 760.2l1.9 7.2-2 4.7-1 7.2 1 7.7-1.9 5.2-0.9 5.7 4 4.7 5.8 2.5 6.8-2 8.2-0.9 2.6 3.5-0.5 0-0.3 5 0 3.4-4 1.3-11.7 2.4-6.3 0.6-2.4-3.9-4.7-3.4-8.3 2.4-3.7 0.5-12.6-4.6-5-5.9-5.3-4.6-6.9 0.4-12.6 2.3-7.2 2-16.3 9.4-3.8 3.8-4.4 2.4-7 5.7-5.3 0.8-2.1 3-1.7 4.9-3.9 3.2-6.1-0.1-8.3-4.7-11.6 1.4 4.6-5.2-0.2-16.4 0.7-12.3 2.8-9.8 4.3-7.7 1.3-10 2.3-8.8 1.3-3 6.1-8.1 1.1-2.8 0.7-1.5 5.6-4.3 0.8-1.6 7.6 4.4 22-2.6 7.6 0.4 6.6 1.8 11.6 4.4 19.7 2.3 12.2 6 5.8-0.1 12 2.4 1-0.7z"/>
 			</svg>
 
-			<button
-				type="button"
-				class="mb-4 rounded-lg border border-stone-300 bg-transparent px-4 py-1.5 text-base text-zinc-800 transition hover:border-emerald-500/80 disabled:cursor-not-allowed disabled:opacity-45 dark:border-zinc-600 dark:text-zinc-200"
-				:disabled="voicePlaybackBlocked"
-				@click="speak"
-			>
-				🔊 播放題目
-			</button>
+			<div class="mb-4 flex justify-center gap-3">
+				<button
+					type="button"
+					class="rounded-lg border border-stone-300 bg-transparent px-4 py-1.5 text-base text-zinc-800 transition hover:border-emerald-500/80 disabled:cursor-not-allowed disabled:opacity-45 dark:border-zinc-600 dark:text-zinc-200"
+					:disabled="voicePlaybackBlocked"
+					@click="speak"
+				>
+					🔊 播放題目
+				</button>
+				<button
+					v-if="srSupported"
+					type="button"
+					class="rounded-lg border border-stone-300 bg-transparent px-4 py-1.5 text-base text-zinc-800 transition hover:border-violet-500/80 disabled:cursor-not-allowed disabled:opacity-45 dark:border-zinc-600 dark:text-zinc-200"
+					:disabled="listening || selected !== null || timeUp"
+					@click="startListening"
+				>
+					{{ listening ? '🎙️ 聆聽中…' : '🎤 說答案' }}
+				</button>
+			</div>
 
 			<p class="mb-4 text-base text-zinc-700 dark:text-zinc-300">紫色的是哪個縣市？</p>
 
