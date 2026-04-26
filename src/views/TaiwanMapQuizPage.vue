@@ -58,6 +58,7 @@ const totalAnswered = ref(0)
 const showReward = ref(false)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
+const speakingId = ref<string | null>(null)
 const voiceEnabled = ref(true)
 const timedMode = ref(false)
 const timeLeft = ref(60)
@@ -98,6 +99,7 @@ async function speak() {
 	const voice = getPreferredZhTwFemaleVoice(voices)
 	window.speechSynthesis.cancel()
 	for (const region of question.value.choices) {
+		speakingId.value = region.id
 		await new Promise<void>((resolve) => {
 			const utt = new SpeechSynthesisUtterance(region.name)
 			utt.lang = 'zh-TW'
@@ -108,6 +110,7 @@ async function speak() {
 			window.speechSynthesis.speak(utt)
 		})
 	}
+	speakingId.value = null
 }
 
 function regionFill(id: string): string {
@@ -259,6 +262,8 @@ onBeforeUnmount(() => stopTimer())
 							selected?.id === region.id && region.id !== question.correct.id,
 						'cursor-default opacity-45':
 							selected !== null && region.id !== question.correct.id && selected?.id !== region.id,
+						'animate-pulse border-amber-400 bg-amber-50 dark:border-amber-400 dark:bg-amber-950/40':
+							speakingId === region.id && selected === null,
 					}"
 					@click="choose(region)"
 				>
