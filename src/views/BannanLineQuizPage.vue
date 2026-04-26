@@ -142,6 +142,35 @@ const SONGSHAN_STATIONS: Station[] = [
   { id: 'G19', name: '南港', hint: '可轉乘板南線（BL22），南港區中心轉運大站' },
 ]
 
+const ZHONGHE_STATIONS: Station[] = [
+  { id: 'O01', name: '南勢角', hint: '中和新蘆線南端起點，中和區南部住宅聚落' },
+  { id: 'O02', name: '景安', hint: '可轉乘環狀線（Y11），中和區景安路商圈' },
+  { id: 'O03', name: '永安市場', hint: '中和區永安傳統市場旁，生活機能豐富' },
+  { id: 'O04', name: '頂溪', hint: '中和與永和交界，頂溪路沿線住宅區' },
+  { id: 'O05', name: '古亭', hint: '可轉乘松山新店線（G09），中正區古亭商圈' },
+  { id: 'O06', name: '東門', hint: '可轉乘淡水信義線（R07），永康商圈旁' },
+  { id: 'O07', name: '忠孝新生', hint: '可轉乘板南線（BL14），忠孝東路與新生南路交口' },
+  { id: 'O08', name: '松江南京', hint: '可轉乘松山新店線（G14），台北市政機關聚集區' },
+  { id: 'O09', name: '行天宮', hint: '中山區行天宮廟旁，香客與商業活動聚集' },
+  { id: 'O10', name: '中山國小', hint: '鄰近中山國小，中山北路住宅商業混合區' },
+  { id: 'O11', name: '民權西路', hint: '可轉乘淡水信義線（R13），大同與中山區交界' },
+  { id: 'O12', name: '大橋頭', hint: '鄰近台北橋橋頭，大同區傳統市場聚落' },
+  { id: 'O13', name: '台北橋', hint: '可轉乘松山新店線（G12），台北橋下方新北市門戶' },
+  { id: 'O14', name: '菜寮', hint: '三重區菜寮路沿線，住宅與商業混合區' },
+  { id: 'O15', name: '三重', hint: '三重區中心，熱鬧的在地商圈' },
+  { id: 'O16', name: '先嗇宮', hint: '鄰近先嗇宮（五穀廟），三重區信仰中心' },
+  { id: 'O17', name: '頭前庄', hint: '可轉乘環狀線（Y18），新莊與三重交界站' },
+  { id: 'O18', name: '新莊', hint: '新莊區行政與商業中心，人口密集區' },
+  { id: 'O19', name: '輔大', hint: '鄰近輔仁大學，通勤與學生族群聚集' },
+  { id: 'O20', name: '丹鳳', hint: '新莊東北端，丹鳳路沿線住宅區' },
+  { id: 'O21', name: '迴龍', hint: '迴龍端點站，新莊最北端，鄰近桃園交界' },
+  { id: 'O50', name: '三重國小', hint: '三重北端，三重國小附近住宅區' },
+  { id: 'O51', name: '三和國中', hint: '三重與蘆洲交界，鄰近三和國中' },
+  { id: 'O52', name: '徐匯中學', hint: '蘆洲南端，天主教徐匯高中附近' },
+  { id: 'O53', name: '三民高中', hint: '蘆洲區三民高中旁，住宅聚落' },
+  { id: 'O54', name: '蘆洲', hint: '蘆洲支線端點站，蘆洲區行政中心附近' },
+]
+
 const METRO_LINES: MetroLine[] = [
   {
     key: 'bannan',
@@ -208,6 +237,19 @@ const METRO_LINES: MetroLine[] = [
     },
     stations: SONGSHAN_STATIONS,
   },
+  {
+    key: 'zhonghe',
+    badge: 'O',
+    title: '中和新蘆線 站名學習',
+    subtitle: 'Zhonghe-Xinlu Line · 認識 26 個車站',
+    theme: {
+      color: '#d46400',
+      colorDark: '#9a4900',
+      colorLight: '#fff3e0',
+      colorMid: '#ffd08c',
+    },
+    stations: ZHONGHE_STATIONS,
+  },
 ]
 
 const TOTAL_Q = 15
@@ -219,7 +261,7 @@ const OPT_PALETTES = [
 	'bg-rose-100 border-rose-300 text-rose-950 hover:not(:disabled):bg-rose-200 hover:not(:disabled):border-rose-400',
 ] as const
 
-const selectedLineKey = ref<'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan'>('bannan')
+const selectedLineKey = ref<'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe'>('bannan')
 const route = useRoute()
 const router = useRouter()
 const currentLine = computed(
@@ -234,19 +276,21 @@ const lineThemeStyle = computed<Record<string, string>>(() => ({
   '--blue-mid': currentLine.value.theme.colorMid,
 }))
 
-function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' {
+function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' {
   if (value === 'tamshui') return 'tamshui'
   if (value === 'circular') return 'circular'
   if (value === 'wenhu') return 'wenhu'
   if (value === 'songshan') return 'songshan'
+  if (value === 'zhonghe') return 'zhonghe'
   return 'bannan'
 }
 
-function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' {
+function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe' {
   if (path.startsWith('/tamshui-line-quiz')) return 'tamshui'
   if (path.startsWith('/circular-line-quiz')) return 'circular'
   if (path.startsWith('/wenhu-line-quiz')) return 'wenhu'
   if (path.startsWith('/songshan-line-quiz')) return 'songshan'
+  if (path.startsWith('/zhonghe-line-quiz')) return 'zhonghe'
   if (path.startsWith('/line-quiz/')) {
     const seg = path.split('/')[2] ?? ''
     return normalizeLineKey(seg)
@@ -254,12 +298,13 @@ function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' |
   return 'bannan'
 }
 
-function pathForLine(key: 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan') {
+function pathForLine(key: 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' | 'zhonghe') {
   if (route.path.startsWith('/line-quiz/')) return `/line-quiz/${key}`
   if (key === 'tamshui') return '/tamshui-line-quiz'
   if (key === 'circular') return '/circular-line-quiz'
   if (key === 'wenhu') return '/wenhu-line-quiz'
   if (key === 'songshan') return '/songshan-line-quiz'
+  if (key === 'zhonghe') return '/zhonghe-line-quiz'
   return '/bannan-line-quiz'
 }
 
