@@ -88,7 +88,7 @@ const speakChinese = async (text: string) => {
 				<img
 					:src="card.image"
 					:alt="card.chinese"
-					class="h-[180px] w-full bg-stone-100 object-cover dark:bg-zinc-800"
+					class="aspect-[4/3] w-full bg-stone-100 object-contain dark:bg-zinc-800"
 					loading="lazy"
 					decoding="async"
 				/>
