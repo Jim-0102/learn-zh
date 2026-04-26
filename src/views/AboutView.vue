@@ -42,13 +42,23 @@
 			本站以 <strong>Vue 3</strong> 開發，部署於 <strong>Cloudflare Workers</strong>，
 			原始碼公開於
 			<a
-				href="https://github.com/3dw/learn-zh"
+				href="https://github.com/Jim-0102/learn-zh"
 				target="_blank"
 				rel="noopener"
 				class="text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
 			>
 				GitHub
 			</a>。
+			網站架構和相關技術學習自
+			<a
+				href="https://zh.alearn.org.tw/"
+				target="_blank"
+				rel="noopener"
+				class="text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
+			>
+				自主學華文
+			</a>
+			網站，在此感謝。
 		</p>
 	</div>
 </template>
