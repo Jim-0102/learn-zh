@@ -60,5 +60,17 @@
 			</a>
 			網站，在此感謝。
 		</p>
+
+		<p class="mt-8 text-base text-zinc-700 dark:text-zinc-300">
+			如有任何問題請聯繫
+			<a
+				href="https://www.instagram.com/wang.da.ming"
+				target="_blank"
+				rel="noopener"
+				class="text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
+			>
+				wang.da.ming
+			</a>。
+		</p>
 	</div>
 </template>
