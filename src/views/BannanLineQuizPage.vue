@@ -340,10 +340,11 @@ function speakStationLabel(name: string) {
 }
 
 function speakFeedback(isRight: boolean, name: string) {
-  if (!voicePlaybackAvailable.value || !voiceEnabled.value || !ttsSupported) return
+  if (!ttsSupported || !voicePlaybackAvailable.value || !zhVoice.value) return
   const spokenName = getSpokenStationName(name)
   const msg = isRight ? `答對了！這站是${spokenName}` : `答錯了，正確答案是${spokenName}`
-  speakText(msg)
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(attachUtterance(msg, speechRate.value))
 }
 
 const lineMapSlice = computed(() => {
