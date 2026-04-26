@@ -736,7 +736,7 @@ watch(fireworksCanvas, (c) => {
 					type="button"
 					class="flex items-center gap-1 rounded-lg border border-[var(--blue-mid)] bg-[var(--blue-light)] px-3 py-1 text-[13px] font-medium text-[var(--blue-dark)] transition hover:bg-[var(--blue-mid)] disabled:cursor-default disabled:opacity-40 dark:text-sky-950"
 					:class="replayBusy ? 'border-[var(--blue-dark)] bg-[var(--blue)] text-white' : ''"
-					:disabled="replayBusy || !voiceEnabled"
+					:disabled="replayBusy || voicePlaybackBlocked"
 					@click="speakOptionsSequentially"
 				>
 					<span class="text-[15px] leading-none">🔈</span>
