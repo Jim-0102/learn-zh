@@ -70,14 +70,9 @@ onBeforeUnmount(() => {
 				<RouterLink to="/custom" :class="linkClass" :exact-active-class="exactActiveClass">
 					自訂朗讀
 				</RouterLink>
-				<a
-					href="https://www.moedict.tw"
-					target="_blank"
-					rel="noopener"
-					:class="linkClass"
-				>
-					萌典
-				</a>
+				<RouterLink to="/taiwan-map-quiz" :class="linkClass" :exact-active-class="exactActiveClass">
+					縣市地圖
+				</RouterLink>
 				<RouterLink to="/bannan-line-quiz" :class="linkClass" :exact-active-class="exactActiveClass">
 					站名學習
 				</RouterLink>
@@ -112,6 +107,14 @@ onBeforeUnmount(() => {
 					:class="linkClass"
 				>
 					兌幣練習
+				</a>
+				<a
+					href="https://www.moedict.tw"
+					target="_blank"
+					rel="noopener"
+					:class="linkClass"
+				>
+					萌典
 				</a>
 				<RouterLink to="/about" :class="linkClass" :exact-active-class="exactActiveClass">
 					關於
