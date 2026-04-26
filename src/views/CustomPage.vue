@@ -26,42 +26,63 @@
 				class="mb-4 rounded-lg border border-stone-200 bg-white/90 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90"
 			>
 				<div class="mb-2 text-xl font-bold text-stone-800 dark:text-stone-100">
-					2) 輸入同音字對照（CSV）
+					2) 請念一遍上面的文字
 				</div>
-				<p class="mb-3 leading-relaxed text-stone-600 dark:text-zinc-300">
-					使用說明：每行一組，格式為「原字詞,替換字詞」。例如：
-					<code class="rounded bg-stone-100 px-1.5 py-0.5 text-sm dark:bg-zinc-800">教,叫</code>、
-					<code class="rounded bg-stone-100 px-1.5 py-0.5 text-sm dark:bg-zinc-800">為人子,危人子</code>。空白行會自動忽略。
+				<p class="mb-1 leading-relaxed text-stone-600 dark:text-zinc-300">
+					按「開始錄音」後，對麥克風念出上方文字，結束後按「停止錄音」。
 				</p>
-				<textarea
-					v-model="rawCsv"
-					class="box-border w-full resize-y rounded border border-stone-300 bg-white p-2 font-inherit text-base text-zinc-900 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-					placeholder="教,叫&#10;為人子,危人子"
-					rows="3"
-				/>
-				<div
-					v-if="csvErrors.length > 0"
-					class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-100"
-				>
-					<div v-for="error in csvErrors" :key="error">{{ error }}</div>
+				<p class="mb-3 text-xs text-zinc-400 dark:text-zinc-500">建議使用 Chrome / Edge 瀏覽器</p>
+				<div class="mb-3 flex flex-wrap items-center gap-3">
+					<button
+						v-if="srSupported"
+						type="button"
+						class="rounded border-0 px-4 py-2 text-base font-medium text-white transition hover:opacity-90"
+						:class="listening ? 'bg-red-500' : 'bg-violet-500'"
+						@click="toggleListening"
+					>
+						{{ listening ? '⏹ 停止錄音' : '🎤 開始錄音' }}
+					</button>
+					<span v-if="!srSupported" class="text-sm text-zinc-500 dark:text-zinc-400">
+						此瀏覽器不支援語音輸入，請改用 Chrome 或 Edge。
+					</span>
+					<span v-if="listening" class="animate-pulse text-sm font-medium text-red-500">🔴 聆聽中…</span>
 				</div>
+				<textarea
+					v-model="spokenText"
+					class="box-border w-full resize-y rounded border border-stone-300 bg-white p-2 font-inherit text-base text-zinc-900 outline-none ring-violet-500/30 focus:border-violet-500 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+					placeholder="語音辨識結果會顯示在這裡…"
+					rows="4"
+				/>
 			</section>
 
 			<section
 				class="mb-4 rounded-lg border border-stone-200 bg-white/90 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90"
 			>
 				<div class="mb-2 text-xl font-bold text-stone-800 dark:text-stone-100">
-					3) 檢查替換後內容
+					3) 兩個答案有沒有差別呢
 				</div>
-				<p class="mb-3 leading-relaxed text-stone-600 dark:text-zinc-300">
-					使用說明：這裡會顯示朗讀前實際送出的文字，方便先確認同音字替換是否符合預期。
-				</p>
-				<textarea
-					v-model="speechText"
-					class="box-border w-full resize-y rounded border border-stone-300 bg-stone-50 p-2 font-inherit text-base text-zinc-900 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-					readonly
-					rows="4"
-				/>
+				<div v-if="!spokenText.trim()" class="text-stone-400 dark:text-zinc-500">
+					請先完成第 2) 步驟的語音輸入。
+				</div>
+				<template v-else>
+					<div class="mb-3 flex items-center gap-4">
+						<span
+							class="text-4xl font-bold tabular-nums"
+							:class="similarityColor"
+						>{{ similarityPct }}%</span>
+						<span class="text-base text-stone-600 dark:text-zinc-300">{{ similarityLabel }}</span>
+					</div>
+					<div class="h-3 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-zinc-700">
+						<div
+							class="h-full rounded-full transition-all duration-500"
+							:class="similarityBarColor"
+							:style="{ width: similarityPct + '%' }"
+						/>
+					</div>
+					<p class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+						比對方式：去除空白與標點後，以字元編輯距離計算相似度。
+					</p>
+				</template>
 			</section>
 
 			<section
@@ -91,110 +112,137 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSpeechAvailability } from '@/composables/useSpeechAvailability'
 import { ZH_TW_PREFERRED_KEYWORDS, getPreferredVoice, getVoicesAsync } from '@/utils/speechVoice'
 
 const rawText = ref(`人之初，性本善，性相近，習相遠。
 苟不教，性乃遷，教之道，貴以專。`)
 
-const rawCsv = ref(`教,叫
-為人子,危人子`)
-
 const isSpeaking = ref(false)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+// ── Speech recognition ──────────────────────────────────────────────────────
 
-const csvParseResult = computed(() => {
-	const map: Record<string, string> = {}
-	const errors: string[] = []
-	const lines = rawCsv.value.split(/\r?\n/)
+const spokenText = ref('')
+const listening = ref(false)
+const srSupported = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SR = any
+let recognition: SR = null
 
-	lines.forEach((line, index) => {
-		const trimmed = line.trim()
-		if (!trimmed) return
+function stopListening() {
+	if (recognition) { recognition.stop(); recognition = null }
+	listening.value = false
+}
 
-		const normalized = trimmed.replace(/，/g, ',')
-		const firstCommaIndex = normalized.indexOf(',')
-
-		if (firstCommaIndex <= 0 || firstCommaIndex === normalized.length - 1) {
-			errors.push(`第 ${index + 1} 行格式錯誤，請使用「原字詞,替換字詞」`)
-			return
+function toggleListening() {
+	if (listening.value) { stopListening(); return }
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const SRClass = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+	if (!SRClass) return
+	window.speechSynthesis?.cancel()
+	spokenText.value = ''
+	recognition = new SRClass()
+	recognition.lang = 'zh-TW'
+	recognition.continuous = true
+	recognition.interimResults = false
+	recognition.maxAlternatives = 1
+	recognition.onstart = () => { listening.value = true }
+	recognition.onresult = (event: SR) => {
+		let text = ''
+		for (let i = 0; i < event.results.length; i++) {
+			if (event.results[i].isFinal) text += event.results[i][0].transcript
 		}
+		spokenText.value = text
+	}
+	recognition.onerror = () => { listening.value = false }
+	recognition.onend = () => { listening.value = false }
+	recognition.start()
+}
 
-		const original = normalized.slice(0, firstCommaIndex).trim()
-		const replacement = normalized.slice(firstCommaIndex + 1).trim()
+// ── Similarity ───────────────────────────────────────────────────────────────
 
-		if (!original || !replacement) {
-			errors.push(`第 ${index + 1} 行內容不可為空`)
-			return
+function levenshtein(a: string, b: string): number {
+	const m = a.length, n = b.length
+	let prev = Array.from({ length: n + 1 }, (_, i) => i)
+	for (let i = 1; i <= m; i++) {
+		const curr: number[] = [i]
+		for (let j = 1; j <= n; j++) {
+			curr[j] = a[i - 1] === b[j - 1]
+				? prev[j - 1]!
+				: 1 + Math.min(prev[j]!, curr[j - 1]!, prev[j - 1]!)
 		}
+		prev = curr
+	}
+	return prev[n]!
+}
 
-		map[original] = replacement
-	})
-
-	return { map, errors }
+const similarityPct = computed(() => {
+	const normalize = (s: string) => s.replace(/[\s　\p{P}]/gu, '')
+	const a = normalize(rawText.value)
+	const b = normalize(spokenText.value)
+	if (!a && !b) return 100
+	if (!a || !b) return 0
+	const maxLen = Math.max(a.length, b.length)
+	return Math.round(Math.max(0, (1 - levenshtein(a, b) / maxLen) * 100))
 })
 
-const csvErrors = computed(() => csvParseResult.value.errors)
-
-const speechText = computed(() => {
-	let processedText = rawText.value
-
-	Object.entries(csvParseResult.value.map).forEach(([original, replacement]) => {
-		processedText = processedText.replace(new RegExp(escapeRegExp(original), 'g'), replacement)
-	})
-
-	return processedText
+const similarityColor = computed(() => {
+	const p = similarityPct.value
+	if (p >= 90) return 'text-emerald-600 dark:text-emerald-400'
+	if (p >= 70) return 'text-amber-600 dark:text-amber-400'
+	return 'text-red-600 dark:text-red-400'
 })
 
-const statusText = computed(() => {
-	if (csvErrors.value.length > 0) return 'CSV 有格式錯誤，仍可朗讀原始可解析項目。'
-	return isSpeaking.value ? '朗讀中...' : '待命中'
+const similarityBarColor = computed(() => {
+	const p = similarityPct.value
+	if (p >= 90) return 'bg-emerald-500'
+	if (p >= 70) return 'bg-amber-500'
+	return 'bg-red-500'
 })
+
+const similarityLabel = computed(() => {
+	const p = similarityPct.value
+	if (p === 100) return '🎉 完全一樣！'
+	if (p >= 90) return '👍 非常接近'
+	if (p >= 70) return '😊 不錯，繼續練習'
+	if (p >= 50) return '🤔 有些差異'
+	return '😅 差異較多，再試一次'
+})
+
+// ── TTS ──────────────────────────────────────────────────────────────────────
+
+const statusText = computed(() => isSpeaking.value ? '朗讀中...' : '待命中')
 
 const createUtterance = async () => {
 	const voices = await getVoicesAsync()
-	const utterance = new SpeechSynthesisUtterance(speechText.value)
+	const utterance = new SpeechSynthesisUtterance(rawText.value)
 	utterance.lang = 'zh-TW'
 	utterance.rate = 0.9
-
 	const preferredVoice = getPreferredVoice('zh-TW', ZH_TW_PREFERRED_KEYWORDS, voices)
-	if (preferredVoice) {
-		utterance.voice = preferredVoice
-		utterance.lang = preferredVoice.lang
-	}
-
-	utterance.onend = () => {
-		isSpeaking.value = false
-	}
-
-	utterance.onerror = () => {
-		isSpeaking.value = false
-	}
-
+	if (preferredVoice) { utterance.voice = preferredVoice; utterance.lang = preferredVoice.lang }
+	utterance.onend = () => { isSpeaking.value = false }
+	utterance.onerror = () => { isSpeaking.value = false }
 	return utterance
 }
 
 const toggleSpeech = async () => {
 	if (!voicePlaybackAvailable.value || typeof window === 'undefined' || !window.speechSynthesis) return
-
-	if (isSpeaking.value) {
-		window.speechSynthesis.cancel()
-		isSpeaking.value = false
-		return
-	}
-
-	if (!speechText.value.trim()) return
-
+	if (isSpeaking.value) { window.speechSynthesis.cancel(); isSpeaking.value = false; return }
+	if (!rawText.value.trim()) return
 	window.speechSynthesis.cancel()
 	window.speechSynthesis.speak(await createUtterance())
 	isSpeaking.value = true
 }
 
+onMounted(() => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	srSupported.value = !!((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition)
+})
+
 onBeforeUnmount(() => {
-	if (typeof window === 'undefined' || !window.speechSynthesis) return
-	window.speechSynthesis.cancel()
+	if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
+	stopListening()
 })
 </script>
