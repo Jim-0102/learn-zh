@@ -119,6 +119,29 @@ const WENHU_STATIONS: Station[] = [
   { id: 'BR24', name: '南港展覽館', hint: '可轉乘板南線（BL23），台北南港展覽館所在地' },
 ]
 
+const SONGSHAN_STATIONS: Station[] = [
+  { id: 'G01', name: '新店', hint: '松山新店線南端起點，新店區行政與商業中心' },
+  { id: 'G02', name: '新店區公所', hint: '新店區公所所在地，鄰近新店溪畔' },
+  { id: 'G03', name: '七張', hint: '可轉往小碧潭支線，七張路周邊住宅區' },
+  { id: 'G03A', name: '小碧潭', hint: '支線終點站，碧潭吊橋與碧潭風景區入口' },
+  { id: 'G04', name: '大坪林', hint: '可轉乘環狀線（Y07），新店商業發展新區' },
+  { id: 'G05', name: '景美', hint: '景美夜市與景美溪畔，文山區著名生活圈' },
+  { id: 'G06', name: '萬隆', hint: '文山區萬隆商圈，鄰近臺灣科技大學' },
+  { id: 'G07', name: '公館', hint: '鄰近台灣大學與公館商圈，學生族群聚集地' },
+  { id: 'G08', name: '台電大樓', hint: '台灣電力公司總部旁，大安區南端站點' },
+  { id: 'G09', name: '古亭', hint: '可轉乘中和新蘆線（O09），中正區古亭商圈' },
+  { id: 'G10', name: '中正紀念堂', hint: '可轉乘淡水信義線（R08），國家音樂廳與劇院周邊' },
+  { id: 'G11', name: '小南門', hint: '中正區，鄰近台北府城小南門古蹟' },
+  { id: 'G12', name: '北門', hint: '可轉乘中和新蘆線（O13），台北府城北門旁' },
+  { id: 'G13', name: '中山', hint: '可轉乘淡水信義線（R11），中山北路百貨商圈' },
+  { id: 'G14', name: '松江南京', hint: '可轉乘中和新蘆線（O14），台北市政機關聚集區' },
+  { id: 'G15', name: '南京復興', hint: '可轉乘文湖線（BR11），南京東路商業辦公區' },
+  { id: 'G16', name: '台北小巨蛋', hint: '台北小巨蛋展演場館旁，松山區娛樂地標' },
+  { id: 'G17', name: '南京三民', hint: '松山區，南京東路與三民路交口' },
+  { id: 'G18', name: '松山', hint: '可轉乘台鐵松山站，鄰近松山文創園區' },
+  { id: 'G19', name: '南港', hint: '可轉乘板南線（BL22），南港區中心轉運大站' },
+]
+
 const METRO_LINES: MetroLine[] = [
   {
     key: 'bannan',
@@ -172,6 +195,19 @@ const METRO_LINES: MetroLine[] = [
     },
     stations: WENHU_STATIONS,
   },
+  {
+    key: 'songshan',
+    badge: 'G',
+    title: '松山新店線 站名學習',
+    subtitle: 'Songshan-Xindian Line · 認識 20 個車站',
+    theme: {
+      color: '#008659',
+      colorDark: '#005e3c',
+      colorLight: '#e6f5ef',
+      colorMid: '#99d3b6',
+    },
+    stations: SONGSHAN_STATIONS,
+  },
 ]
 
 const TOTAL_Q = 15
@@ -183,7 +219,7 @@ const OPT_PALETTES = [
 	'bg-rose-100 border-rose-300 text-rose-950 hover:not(:disabled):bg-rose-200 hover:not(:disabled):border-rose-400',
 ] as const
 
-const selectedLineKey = ref<'bannan' | 'tamshui' | 'circular' | 'wenhu'>('bannan')
+const selectedLineKey = ref<'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan'>('bannan')
 const route = useRoute()
 const router = useRouter()
 const currentLine = computed(
@@ -198,17 +234,19 @@ const lineThemeStyle = computed<Record<string, string>>(() => ({
   '--blue-mid': currentLine.value.theme.colorMid,
 }))
 
-function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' | 'wenhu' {
+function normalizeLineKey(value: unknown): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' {
   if (value === 'tamshui') return 'tamshui'
   if (value === 'circular') return 'circular'
   if (value === 'wenhu') return 'wenhu'
+  if (value === 'songshan') return 'songshan'
   return 'bannan'
 }
 
-function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' | 'wenhu' {
+function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan' {
   if (path.startsWith('/tamshui-line-quiz')) return 'tamshui'
   if (path.startsWith('/circular-line-quiz')) return 'circular'
   if (path.startsWith('/wenhu-line-quiz')) return 'wenhu'
+  if (path.startsWith('/songshan-line-quiz')) return 'songshan'
   if (path.startsWith('/line-quiz/')) {
     const seg = path.split('/')[2] ?? ''
     return normalizeLineKey(seg)
@@ -216,11 +254,12 @@ function lineKeyFromRoutePath(path: string): 'bannan' | 'tamshui' | 'circular' |
   return 'bannan'
 }
 
-function pathForLine(key: 'bannan' | 'tamshui' | 'circular' | 'wenhu') {
+function pathForLine(key: 'bannan' | 'tamshui' | 'circular' | 'wenhu' | 'songshan') {
   if (route.path.startsWith('/line-quiz/')) return `/line-quiz/${key}`
   if (key === 'tamshui') return '/tamshui-line-quiz'
   if (key === 'circular') return '/circular-line-quiz'
   if (key === 'wenhu') return '/wenhu-line-quiz'
+  if (key === 'songshan') return '/songshan-line-quiz'
   return '/bannan-line-quiz'
 }
 

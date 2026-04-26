@@ -68,7 +68,12 @@ const router = createRouter({
       component: () => import('../views/BannanLineQuizPage.vue'),
     },
     {
-      path: '/line-quiz/:lineKey(bannan|tamshui|circular|wenhu)',
+      path: '/songshan-line-quiz',
+      name: 'songshan-line-quiz',
+      component: () => import('../views/BannanLineQuizPage.vue'),
+    },
+    {
+      path: '/line-quiz/:lineKey(bannan|tamshui|circular|wenhu|songshan)',
       name: 'line-quiz',
       component: () => import('../views/BannanLineQuizPage.vue'),
     },
