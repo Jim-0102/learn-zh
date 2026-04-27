@@ -53,7 +53,7 @@ const features = [
 	{
 		href: 'https://www.moedict.tw',
 		emoji: '📚',
-		title: '萌典',
+		title: '萌典（外部連結）',
 		desc: '查詢華文單字、成語、詞組的釋義與用法。',
 	},
 ]
