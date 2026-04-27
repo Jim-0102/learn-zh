@@ -87,6 +87,31 @@
 							播放英文發音
 						</button>
 					</div>
+
+					<div v-if="srSupported" class="mt-4 border-t border-stone-200 pt-4 dark:border-zinc-700">
+						<div class="mb-2 flex flex-wrap items-center gap-3">
+							<button
+								type="button"
+								class="rounded border-0 px-4 py-2 text-base text-white transition hover:opacity-90"
+								:class="listening ? 'bg-red-500' : 'bg-violet-500'"
+								@click="toggleListening"
+							>
+								{{ listening ? '⏹ 停止錄音' : '🎤 請念一遍上面的文字' }}
+							</button>
+							<span v-if="listening" class="animate-pulse text-sm font-medium text-red-500">🔴 聆聽中…</span>
+							<span class="text-xs text-zinc-400 dark:text-zinc-500">建議使用 Chrome / Edge</span>
+						</div>
+						<template v-if="spokenText">
+							<p class="mb-2 text-sm text-zinc-500 dark:text-zinc-400">你說的：{{ spokenText }}</p>
+							<div class="mb-2 flex items-center gap-3">
+								<span class="text-3xl font-bold tabular-nums" :class="similarityColor">{{ similarityPct }}%</span>
+								<span class="text-sm text-zinc-600 dark:text-zinc-300">{{ similarityLabel }}</span>
+							</div>
+							<div class="h-2.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-zinc-700">
+								<div class="h-full rounded-full transition-all duration-500" :class="similarityBarColor" :style="{ width: similarityPct + '%' }" />
+							</div>
+						</template>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -94,7 +119,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onUnmounted } from 'vue'
+import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue'
 import heic2any from 'heic2any'
 import Pica from 'pica'
 import { useSpeechAvailability } from '@/composables/useSpeechAvailability'
@@ -109,7 +134,6 @@ export default defineComponent({
 
 	setup() {
 		const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
-		const FAVORITES_KEY = 'en_love_arr'
 		const DETECT_IMAGE_API =
 			(import.meta.env.VITE_DETECT_IMAGE_API as string | undefined) ?? '/api/detect-image-zh'
 		const imagePreview = ref('')
@@ -127,17 +151,91 @@ export default defineComponent({
 			target.value = ''
 		}
 
-		const getFavorites = () => {
-			try {
-				const raw = localStorage.getItem(FAVORITES_KEY)
-				if (!raw) return []
-				const parsed = JSON.parse(raw)
-				return Array.isArray(parsed) ? parsed : []
-			} catch (error) {
-				console.error('讀取最愛失敗:', error)
-				return []
-			}
+		// ── Speech recognition ──────────────────────────────────────────
+		const spokenText = ref('')
+		const listening = ref(false)
+		const srSupported = ref(false)
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		type SR = any
+		let recognition: SR = null
+
+		function stopListening() {
+			if (recognition) { recognition.stop(); recognition = null }
+			listening.value = false
 		}
+
+		function toggleListening() {
+			if (listening.value) { stopListening(); return }
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const SRClass = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+			if (!SRClass) return
+			window.speechSynthesis?.cancel()
+			spokenText.value = ''
+			recognition = new SRClass()
+			recognition.lang = 'zh-TW'
+			recognition.continuous = true
+			recognition.interimResults = false
+			recognition.maxAlternatives = 1
+			recognition.onstart = () => { listening.value = true }
+			recognition.onresult = (event: SR) => {
+				let text = ''
+				for (let i = 0; i < event.results.length; i++) {
+					if (event.results[i].isFinal) text += event.results[i][0].transcript
+				}
+				spokenText.value = text
+			}
+			recognition.onerror = () => { listening.value = false }
+			recognition.onend = () => { listening.value = false }
+			recognition.start()
+		}
+
+		// ── Similarity ───────────────────────────────────────────────────
+		function levenshtein(a: string, b: string): number {
+			const m = a.length, n = b.length
+			let prev = Array.from({ length: n + 1 }, (_, i) => i)
+			for (let i = 1; i <= m; i++) {
+				const curr: number[] = [i]
+				for (let j = 1; j <= n; j++) {
+					curr[j] = a[i - 1] === b[j - 1]
+						? prev[j - 1]!
+						: 1 + Math.min(prev[j]!, curr[j - 1]!, prev[j - 1]!)
+				}
+				prev = curr
+			}
+			return prev[n]!
+		}
+
+		const similarityPct = computed(() => {
+			const normalize = (s: string) => s.replace(/[\s　\p{P}]/gu, '')
+			const a = normalize(resultZh.value)
+			const b = normalize(spokenText.value)
+			if (!a && !b) return 100
+			if (!a || !b) return 0
+			return Math.round(Math.max(0, (1 - levenshtein(a, b) / Math.max(a.length, b.length)) * 100))
+		})
+
+		const similarityColor = computed(() => {
+			const p = similarityPct.value
+			if (p >= 90) return 'text-emerald-500'
+			if (p >= 70) return 'text-amber-500'
+			return 'text-red-500'
+		})
+
+		const similarityBarColor = computed(() => {
+			const p = similarityPct.value
+			if (p >= 90) return 'bg-emerald-500'
+			if (p >= 70) return 'bg-amber-500'
+			return 'bg-red-500'
+		})
+
+		const similarityLabel = computed(() => {
+			const p = similarityPct.value
+			if (p === 100) return '🎉 完全一樣！'
+			if (p >= 90) return '👍 非常接近'
+			if (p >= 70) return '😊 不錯，繼續練習'
+			if (p >= 50) return '🤔 有些差異'
+			return '😅 差異較多，再試一次'
+		})
 
 		const blobToDataUrl = (blob: Blob) =>
 			new Promise<string>((resolve, reject) => {
@@ -193,44 +291,6 @@ export default defineComponent({
 			}
 
 			return blobToDataUrl(compressedBlob)
-		}
-
-		const saveToFavorites = async () => {
-			if (!resultEn.value || !resultZh.value) {
-				window.alert('請先拍照或上傳圖片，產生中英文內容後再收藏')
-				return
-			}
-
-			try {
-				const favorites = getFavorites()
-				const existingIndex = favorites.findIndex(
-					(card: { english: string; chinese: string }) =>
-						card.english === resultEn.value && card.chinese === resultZh.value,
-				)
-
-				const image = await createLowResImage()
-				const favoriteCard = {
-					english: resultEn.value,
-					chinese: resultZh.value,
-					...(image ? { image } : {}),
-				}
-
-				if (existingIndex >= 0) {
-					favorites[existingIndex] = {
-						...favorites[existingIndex],
-						...favoriteCard,
-					}
-					window.alert('已更新最愛中的字卡')
-				} else {
-					favorites.push(favoriteCard)
-					window.alert('已加入最愛')
-				}
-
-				localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites))
-			} catch (error) {
-				console.error('儲存最愛失敗:', error)
-				window.alert('儲存最愛失敗，請稍後再試')
-			}
 		}
 
 		const handleImageUpload = async (file: File) => {
@@ -327,6 +387,8 @@ export default defineComponent({
 			loading.value = true
 			resultEn.value = ''
 			resultZh.value = ''
+			spokenText.value = ''
+			stopListening()
 
 			try {
 				const formData = new FormData()
@@ -410,10 +472,14 @@ export default defineComponent({
 			)
 		}
 
+		onMounted(() => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			srSupported.value = !!((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition)
+		})
+
 		onUnmounted(() => {
-			if (stream) {
-				stream.getTracks().forEach((track) => track.stop())
-			}
+			if (stream) stream.getTracks().forEach((track) => track.stop())
+			stopListening()
 		})
 
 		return {
@@ -430,7 +496,14 @@ export default defineComponent({
 			showCamera,
 			openCamera,
 			takePhoto,
-			saveToFavorites,
+			spokenText,
+			listening,
+			srSupported,
+			toggleListening,
+			similarityPct,
+			similarityColor,
+			similarityBarColor,
+			similarityLabel,
 		}
 	},
 })
