@@ -86,13 +86,6 @@
 						>
 							播放英文發音
 						</button>
-						<button
-							type="button"
-							class="cursor-pointer rounded border-0 bg-pink-600 px-4 py-2 text-base text-white transition hover:bg-pink-700"
-							@click="saveToFavorites"
-						>
-							存到最愛
-						</button>
 					</div>
 				</div>
 			</div>
