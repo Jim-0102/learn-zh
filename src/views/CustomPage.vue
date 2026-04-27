@@ -306,14 +306,22 @@ function toggleListeningInput() {
 	recognitionInput.onresult = (event: SR) => {
 		for (let i = lastInputResultIndex; i < event.results.length; i++) {
 			if (event.results[i].isFinal) {
-				const text: string = event.results[i][0].transcript.trim()
-				if (text) rawText.value = rawText.value ? rawText.value + '\n' + text : text
+				let seg: string = event.results[i][0].transcript.trim()
+				if (!seg) { lastInputResultIndex = i + 1; continue }
+				const isZh = inputLang.value === 'zh-TW'
+				const alreadyPunct = isZh ? /[，。！？；：…]$/.test(seg) : /[,.!?;:]$/.test(seg)
+				if (!alreadyPunct) seg += isZh ? '，' : ', '
+				rawText.value += seg
 				lastInputResultIndex = i + 1
 			}
 		}
 	}
 	recognitionInput.onerror = () => { listeningInput.value = false }
-	recognitionInput.onend = () => { listeningInput.value = false }
+	recognitionInput.onend = () => {
+		listeningInput.value = false
+		if (rawText.value.endsWith('，')) rawText.value = rawText.value.slice(0, -1) + '。'
+		else if (rawText.value.endsWith(', ')) rawText.value = rawText.value.slice(0, -2) + '.'
+	}
 	recognitionInput.start()
 }
 
