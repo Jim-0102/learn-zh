@@ -239,6 +239,8 @@ const toggleSpeech = async () => {
 onMounted(() => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	srSupported.value = !!((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition)
+	const preset = new URLSearchParams(window.location.search).get('text')
+	if (preset) rawText.value = preset
 })
 
 onBeforeUnmount(() => {

@@ -75,7 +75,7 @@
 							🐢 慢速語音播放
 						</label>
 						<a
-							href="/custom"
+							:href="resultZh ? '/custom?text=' + encodeURIComponent(resultZh) : '/custom'"
 							class="rounded-md border border-stone-300 px-3 py-1 text-xs text-zinc-600 no-underline transition hover:border-emerald-500/70 hover:text-emerald-700 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-400/60 dark:hover:text-emerald-400"
 						>
 							進入自訂朗讀遊戲 →
