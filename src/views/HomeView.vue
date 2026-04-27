@@ -47,7 +47,7 @@ const features = [
 	{
 		href: 'https://freemath-5yx.pages.dev/coin-exchange',
 		emoji: '🪙',
-		title: '兌幣練習',
+		title: '兌幣練習（外部連結）',
 		desc: '拖拉硬幣到兌換區，練習硬幣面額換算，培養日常生活的數感與金錢概念。',
 	},
 	{
