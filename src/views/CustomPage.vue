@@ -38,6 +38,24 @@
 					:placeholder="inputLang === 'en-US' ? 'Enter text to read aloud...' : '請輸入要朗讀的內容...'"
 					rows="4"
 				/>
+				<div class="mt-2 flex flex-wrap items-center gap-3">
+					<label v-if="srSupported" class="flex cursor-pointer items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+						<input type="checkbox" v-model="voiceInputEnabled" class="accent-violet-500" />
+						🎤 語音輸入
+					</label>
+					<template v-if="voiceInputEnabled && srSupported">
+						<button
+							type="button"
+							class="rounded border-0 px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
+							:class="listeningInput ? 'bg-red-500' : 'bg-violet-500'"
+							@click="toggleListeningInput"
+						>
+							{{ listeningInput ? '⏹ 停止' : '🎙️ 開始說話' }}
+						</button>
+						<span v-if="listeningInput" class="animate-pulse text-sm font-medium text-red-500">🔴 聆聽中…</span>
+						<span class="text-xs text-zinc-400 dark:text-zinc-500">建議使用 Chrome / Edge</span>
+					</template>
+				</div>
 			</section>
 
 			<section
@@ -261,9 +279,48 @@ const toggleSpeech = async () => {
 	isSpeaking.value = true
 }
 
+// ── Voice input for section 1 ────────────────────────────────────────────────
+
+const voiceInputEnabled = ref(false)
+const listeningInput = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let recognitionInput: SR = null
+let lastInputResultIndex = 0
+
+function stopListeningInput() {
+	if (recognitionInput) { recognitionInput.stop(); recognitionInput = null }
+	listeningInput.value = false
+}
+
+function toggleListeningInput() {
+	if (listeningInput.value) { stopListeningInput(); return }
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const SRClass = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+	if (!SRClass) return
+	recognitionInput = new SRClass()
+	recognitionInput.lang = inputLang.value
+	recognitionInput.continuous = true
+	recognitionInput.interimResults = false
+	recognitionInput.maxAlternatives = 1
+	recognitionInput.onstart = () => { listeningInput.value = true; lastInputResultIndex = 0 }
+	recognitionInput.onresult = (event: SR) => {
+		for (let i = lastInputResultIndex; i < event.results.length; i++) {
+			if (event.results[i].isFinal) {
+				const text: string = event.results[i][0].transcript.trim()
+				if (text) rawText.value = rawText.value ? rawText.value + '\n' + text : text
+				lastInputResultIndex = i + 1
+			}
+		}
+	}
+	recognitionInput.onerror = () => { listeningInput.value = false }
+	recognitionInput.onend = () => { listeningInput.value = false }
+	recognitionInput.start()
+}
+
 watch(inputLang, () => {
 	spokenText.value = ''
 	stopListening()
+	stopListeningInput()
 	if (isSpeaking.value) { window.speechSynthesis?.cancel(); isSpeaking.value = false }
 })
 
@@ -277,5 +334,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
 	stopListening()
+	stopListeningInput()
 })
 </script>
