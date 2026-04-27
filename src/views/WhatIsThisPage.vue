@@ -69,11 +69,17 @@
 					<div class="mb-2 text-zinc-900 dark:text-zinc-100">華文：{{ resultZh }}</div>
 					<div class="mb-4 text-zinc-500 dark:text-zinc-400">英文原句：{{ resultEn }}</div>
 
-					<div class="mb-3 flex flex-wrap gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+					<div class="mb-3 flex flex-wrap items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
 						<label class="flex cursor-pointer items-center gap-1.5">
 							<input type="checkbox" v-model="slowMode" class="accent-amber-500" />
 							🐢 慢速語音播放
 						</label>
+						<a
+							href="/custom"
+							class="rounded-md border border-stone-300 px-3 py-1 text-xs text-zinc-600 no-underline transition hover:border-emerald-500/70 hover:text-emerald-700 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-400/60 dark:hover:text-emerald-400"
+						>
+							進入自訂朗讀遊戲 →
+						</a>
 					</div>
 					<div class="flex flex-wrap gap-2">
 						<button
