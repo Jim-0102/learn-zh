@@ -88,29 +88,58 @@
 						</button>
 					</div>
 
-					<div v-if="srSupported" class="mt-4 border-t border-stone-200 pt-4 dark:border-zinc-700">
-						<div class="mb-2 flex flex-wrap items-center gap-3">
-							<button
-								type="button"
-								class="rounded border-0 px-4 py-2 text-base text-white transition hover:opacity-90"
-								:class="listening ? 'bg-red-500' : 'bg-violet-500'"
-								@click="toggleListening"
-							>
-								{{ listening ? '⏹ 停止錄音' : '🎤 請念一遍上面的文字' }}
-							</button>
-							<span v-if="listening" class="animate-pulse text-sm font-medium text-red-500">🔴 聆聽中…</span>
-							<span class="text-xs text-zinc-400 dark:text-zinc-500">建議使用 Chrome / Edge</span>
+					<div v-if="srSupported" class="mt-4 space-y-4 border-t border-stone-200 pt-4 dark:border-zinc-700">
+						<!-- Chinese pronunciation -->
+						<div>
+							<p class="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">華文朗讀練習</p>
+							<div class="mb-2 flex flex-wrap items-center gap-3">
+								<button
+									type="button"
+									class="rounded border-0 px-4 py-2 text-base text-white transition hover:opacity-90"
+									:class="listening ? 'bg-red-500' : 'bg-violet-500'"
+									@click="toggleListening"
+								>
+									{{ listening ? '⏹ 停止錄音' : '🎤 請念一遍上面的文字' }}
+								</button>
+								<span v-if="listening" class="animate-pulse text-sm font-medium text-red-500">🔴 聆聽中…</span>
+							</div>
+							<template v-if="spokenText">
+								<p class="mb-2 text-sm text-zinc-500 dark:text-zinc-400">你說的：{{ spokenText }}</p>
+								<div class="mb-2 flex items-center gap-3">
+									<span class="text-3xl font-bold tabular-nums" :class="similarityColor">{{ similarityPct }}%</span>
+									<span class="text-sm text-zinc-600 dark:text-zinc-300">{{ similarityLabel }}</span>
+								</div>
+								<div class="h-2.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-zinc-700">
+									<div class="h-full rounded-full transition-all duration-500" :class="similarityBarColor" :style="{ width: similarityPct + '%' }" />
+								</div>
+							</template>
 						</div>
-						<template v-if="spokenText">
-							<p class="mb-2 text-sm text-zinc-500 dark:text-zinc-400">你說的：{{ spokenText }}</p>
-							<div class="mb-2 flex items-center gap-3">
-								<span class="text-3xl font-bold tabular-nums" :class="similarityColor">{{ similarityPct }}%</span>
-								<span class="text-sm text-zinc-600 dark:text-zinc-300">{{ similarityLabel }}</span>
+						<!-- English pronunciation -->
+						<div>
+							<p class="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">英文朗讀練習</p>
+							<div class="mb-2 flex flex-wrap items-center gap-3">
+								<button
+									type="button"
+									class="rounded border-0 px-4 py-2 text-base text-white transition hover:opacity-90"
+									:class="listeningEn ? 'bg-red-500' : 'bg-teal-600'"
+									@click="toggleListeningEn"
+								>
+									{{ listeningEn ? '⏹ Stop recording' : '🎤 Read the English aloud' }}
+								</button>
+								<span v-if="listeningEn" class="animate-pulse text-sm font-medium text-red-500">🔴 Listening…</span>
 							</div>
-							<div class="h-2.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-zinc-700">
-								<div class="h-full rounded-full transition-all duration-500" :class="similarityBarColor" :style="{ width: similarityPct + '%' }" />
-							</div>
-						</template>
+							<template v-if="spokenEnText">
+								<p class="mb-2 text-sm text-zinc-500 dark:text-zinc-400">You said: {{ spokenEnText }}</p>
+								<div class="mb-2 flex items-center gap-3">
+									<span class="text-3xl font-bold tabular-nums" :class="similarityColorEn">{{ similarityPctEn }}%</span>
+									<span class="text-sm text-zinc-600 dark:text-zinc-300">{{ similarityLabelEn }}</span>
+								</div>
+								<div class="h-2.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-zinc-700">
+									<div class="h-full rounded-full transition-all duration-500" :class="similarityBarColorEn" :style="{ width: similarityPctEn + '%' }" />
+								</div>
+							</template>
+						</div>
+						<p class="text-xs text-zinc-400 dark:text-zinc-500">建議使用 Chrome / Edge 瀏覽器</p>
 					</div>
 				</div>
 			</div>
@@ -235,6 +264,73 @@ export default defineComponent({
 			if (p >= 70) return '😊 不錯，繼續練習'
 			if (p >= 50) return '🤔 有些差異'
 			return '😅 差異較多，再試一次'
+		})
+
+		// ── English speech recognition ──────────────────────────────────
+		const spokenEnText = ref('')
+		const listeningEn = ref(false)
+		let recognitionEn: SR = null
+
+		function stopListeningEn() {
+			if (recognitionEn) { recognitionEn.stop(); recognitionEn = null }
+			listeningEn.value = false
+		}
+
+		function toggleListeningEn() {
+			if (listeningEn.value) { stopListeningEn(); return }
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const SRClass = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+			if (!SRClass) return
+			window.speechSynthesis?.cancel()
+			spokenEnText.value = ''
+			recognitionEn = new SRClass()
+			recognitionEn.lang = 'en-US'
+			recognitionEn.continuous = true
+			recognitionEn.interimResults = false
+			recognitionEn.maxAlternatives = 1
+			recognitionEn.onstart = () => { listeningEn.value = true }
+			recognitionEn.onresult = (event: SR) => {
+				let text = ''
+				for (let i = 0; i < event.results.length; i++) {
+					if (event.results[i].isFinal) text += event.results[i][0].transcript
+				}
+				spokenEnText.value = text
+			}
+			recognitionEn.onerror = () => { listeningEn.value = false }
+			recognitionEn.onend = () => { listeningEn.value = false }
+			recognitionEn.start()
+		}
+
+		const similarityPctEn = computed(() => {
+			const normalize = (s: string) => s.replace(/[\s\p{P}]/gu, '').toLowerCase()
+			const a = normalize(resultEn.value)
+			const b = normalize(spokenEnText.value)
+			if (!a && !b) return 100
+			if (!a || !b) return 0
+			return Math.round(Math.max(0, (1 - levenshtein(a, b) / Math.max(a.length, b.length)) * 100))
+		})
+
+		const similarityColorEn = computed(() => {
+			const p = similarityPctEn.value
+			if (p >= 90) return 'text-emerald-500'
+			if (p >= 70) return 'text-amber-500'
+			return 'text-red-500'
+		})
+
+		const similarityBarColorEn = computed(() => {
+			const p = similarityPctEn.value
+			if (p >= 90) return 'bg-emerald-500'
+			if (p >= 70) return 'bg-amber-500'
+			return 'bg-red-500'
+		})
+
+		const similarityLabelEn = computed(() => {
+			const p = similarityPctEn.value
+			if (p === 100) return '🎉 Perfect!'
+			if (p >= 90) return '👍 Very close!'
+			if (p >= 70) return '😊 Good, keep going'
+			if (p >= 50) return '🤔 Some differences'
+			return '😅 Try again'
 		})
 
 		const blobToDataUrl = (blob: Blob) =>
@@ -388,7 +484,9 @@ export default defineComponent({
 			resultEn.value = ''
 			resultZh.value = ''
 			spokenText.value = ''
+			spokenEnText.value = ''
 			stopListening()
+			stopListeningEn()
 
 			try {
 				const formData = new FormData()
@@ -480,6 +578,7 @@ export default defineComponent({
 		onUnmounted(() => {
 			if (stream) stream.getTracks().forEach((track) => track.stop())
 			stopListening()
+			stopListeningEn()
 		})
 
 		return {
@@ -504,6 +603,13 @@ export default defineComponent({
 			similarityColor,
 			similarityBarColor,
 			similarityLabel,
+			spokenEnText,
+			listeningEn,
+			toggleListeningEn,
+			similarityPctEn,
+			similarityColorEn,
+			similarityBarColorEn,
+			similarityLabelEn,
 		}
 	},
 })
