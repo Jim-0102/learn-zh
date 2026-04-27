@@ -56,16 +56,40 @@ async function openQR() {
 
 function closeQR() { showQR.value = false }
 
-function downloadQR() {
+async function buildComposedDataUrl(): Promise<string> {
+	const qrSize = 280
+	const pad = 24
+	const titleH = 52
+	const canvas = document.createElement('canvas')
+	canvas.width = qrSize + pad * 2
+	canvas.height = qrSize + pad * 2 + titleH
+	const ctx = canvas.getContext('2d')!
+	ctx.fillStyle = '#ffffff'
+	ctx.fillRect(0, 0, canvas.width, canvas.height)
+	ctx.fillStyle = '#1c1917'
+	ctx.font = 'bold 22px sans-serif'
+	ctx.textAlign = 'center'
+	ctx.textBaseline = 'middle'
+	ctx.fillText('學齡前的早療小教室', canvas.width / 2, pad + titleH / 2)
+	const img = new Image()
+	img.src = qrDataUrl.value
+	await new Promise<void>(resolve => { img.onload = () => resolve() })
+	ctx.drawImage(img, pad, pad + titleH, qrSize, qrSize)
+	return canvas.toDataURL('image/png')
+}
+
+async function downloadQR() {
+	const dataUrl = await buildComposedDataUrl()
 	const a = document.createElement('a')
-	a.href = qrDataUrl.value
+	a.href = dataUrl
 	a.download = 'learn-zh-qrcode.png'
 	a.click()
 }
 
 async function shareQR() {
 	try {
-		const res = await fetch(qrDataUrl.value)
+		const dataUrl = await buildComposedDataUrl()
+		const res = await fetch(dataUrl)
 		const blob = await res.blob()
 		const file = new File([blob], 'learn-zh-qrcode.png', { type: 'image/png' })
 		await navigator.share({ title: '學齡前的早療小教室', text: '掃描 QR Code 開始學習', files: [file] })
