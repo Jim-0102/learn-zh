@@ -69,6 +69,12 @@
 					<div class="mb-2 text-zinc-900 dark:text-zinc-100">華文：{{ resultZh }}</div>
 					<div class="mb-4 text-zinc-500 dark:text-zinc-400">英文原句：{{ resultEn }}</div>
 
+					<div class="mb-3 flex flex-wrap gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+						<label class="flex cursor-pointer items-center gap-1.5">
+							<input type="checkbox" v-model="slowMode" class="accent-amber-500" />
+							🐢 慢速語音播放
+						</label>
+					</div>
 					<div class="flex flex-wrap gap-2">
 						<button
 							type="button"
@@ -513,14 +519,16 @@ export default defineComponent({
 			}
 		}
 
+		const slowMode = ref(false)
+
 		const playZhAudio = () => {
 			if (!voicePlaybackAvailable.value) return
-			speakTextWithPreferredVoice(resultZh.value, 'zh-TW', ZH_TW_PREFERRED_KEYWORDS, 0.72)
+			speakTextWithPreferredVoice(resultZh.value, 'zh-TW', ZH_TW_PREFERRED_KEYWORDS, slowMode.value ? 0.5 : 0.72)
 		}
 
 		const playEnAudio = () => {
 			if (!voicePlaybackAvailable.value) return
-			speakTextWithPreferredVoice(resultEn.value, 'en-US', EN_US_PREFERRED_KEYWORDS)
+			speakTextWithPreferredVoice(resultEn.value, 'en-US', EN_US_PREFERRED_KEYWORDS, slowMode.value ? 0.5 : 1.0)
 		}
 
 		const openCamera = async () => {
@@ -595,6 +603,7 @@ export default defineComponent({
 			showCamera,
 			openCamera,
 			takePhoto,
+			slowMode,
 			spokenText,
 			listening,
 			srSupported,
