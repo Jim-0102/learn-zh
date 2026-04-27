@@ -302,7 +302,7 @@ function toggleListeningInput() {
 	recognitionInput.continuous = true
 	recognitionInput.interimResults = false
 	recognitionInput.maxAlternatives = 1
-	recognitionInput.onstart = () => { listeningInput.value = true; lastInputResultIndex = 0 }
+	recognitionInput.onstart = () => { listeningInput.value = true; lastInputResultIndex = 0; rawText.value = '' }
 	recognitionInput.onresult = (event: SR) => {
 		for (let i = lastInputResultIndex; i < event.results.length; i++) {
 			if (event.results[i].isFinal) {
