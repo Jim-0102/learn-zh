@@ -400,7 +400,7 @@ const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
 const timedMode = ref(false)
 const timeLeft = ref(60)
-let timerId: ReturnType<typeof window.setInterval> | null = null
+let timerId: number | null = null
 
 async function refreshZhVoice() {
   if (!ttsSupported) return

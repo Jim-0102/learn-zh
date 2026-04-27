@@ -128,7 +128,7 @@ const englishMode = ref(false)
 const timedMode = ref(false)
 const timeLeft = ref(60)
 const timeUp = ref(false)
-let timerId: ReturnType<typeof window.setInterval> | null = null
+let timerId: number | null = null
 
 function stopTimer() {
 	if (timerId !== null) { window.clearInterval(timerId); timerId = null }
