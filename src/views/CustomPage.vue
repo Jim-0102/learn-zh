@@ -14,10 +14,28 @@
 				<p class="mb-3 leading-relaxed text-stone-600 dark:text-zinc-300">
 					使用說明：將想朗讀的內容貼到下方，可輸入多段文字。系統會保留換行，朗讀時依目前內容播放。
 				</p>
+				<div class="mb-2 flex gap-2">
+					<button
+						type="button"
+						class="rounded-md border px-3 py-1 text-sm font-medium transition"
+						:class="inputLang === 'zh-TW'
+							? 'border-emerald-500 bg-emerald-500 text-white'
+							: 'border-stone-300 bg-transparent text-zinc-600 hover:border-emerald-400 dark:border-zinc-600 dark:text-zinc-300'"
+						@click="inputLang = 'zh-TW'"
+					>中文</button>
+					<button
+						type="button"
+						class="rounded-md border px-3 py-1 text-sm font-medium transition"
+						:class="inputLang === 'en-US'
+							? 'border-teal-500 bg-teal-500 text-white'
+							: 'border-stone-300 bg-transparent text-zinc-600 hover:border-teal-400 dark:border-zinc-600 dark:text-zinc-300'"
+						@click="inputLang = 'en-US'"
+					>English</button>
+				</div>
 				<textarea
 					v-model="rawText"
 					class="box-border w-full resize-y rounded border border-stone-300 bg-white p-2 font-inherit text-base text-zinc-900 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-					placeholder="請輸入要朗讀的內容..."
+					:placeholder="inputLang === 'en-US' ? 'Enter text to read aloud...' : '請輸入要朗讀的內容...'"
 					rows="4"
 				/>
 			</section>
@@ -112,12 +130,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSpeechAvailability } from '@/composables/useSpeechAvailability'
-import { ZH_TW_PREFERRED_KEYWORDS, getPreferredVoice, getVoicesAsync } from '@/utils/speechVoice'
+import { EN_US_PREFERRED_KEYWORDS, ZH_TW_PREFERRED_KEYWORDS, getPreferredVoice, getVoicesAsync } from '@/utils/speechVoice'
 
 const rawText = ref(`人之初，性本善，性相近，習相遠。
 苟不教，性乃遷，教之道，貴以專。`)
+
+const inputLang = ref<'zh-TW' | 'en-US'>('zh-TW')
 
 const isSpeaking = ref(false)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
@@ -144,7 +164,7 @@ function toggleListening() {
 	window.speechSynthesis?.cancel()
 	spokenText.value = ''
 	recognition = new SRClass()
-	recognition.lang = 'zh-TW'
+	recognition.lang = inputLang.value
 	recognition.continuous = true
 	recognition.interimResults = false
 	recognition.maxAlternatives = 1
@@ -179,7 +199,10 @@ function levenshtein(a: string, b: string): number {
 }
 
 const similarityPct = computed(() => {
-	const normalize = (s: string) => s.replace(/[\s　\p{P}]/gu, '')
+	const normalize = (s: string) => {
+		const stripped = s.replace(/[\s　\p{P}]/gu, '')
+		return inputLang.value === 'en-US' ? stripped.toLowerCase() : stripped
+	}
 	const a = normalize(rawText.value)
 	const b = normalize(spokenText.value)
 	if (!a && !b) return 100
@@ -217,10 +240,12 @@ const statusText = computed(() => isSpeaking.value ? '朗讀中...' : '待命中
 
 const createUtterance = async () => {
 	const voices = await getVoicesAsync()
+	const isEn = inputLang.value === 'en-US'
 	const utterance = new SpeechSynthesisUtterance(rawText.value)
-	utterance.lang = 'zh-TW'
-	utterance.rate = 0.9
-	const preferredVoice = getPreferredVoice('zh-TW', ZH_TW_PREFERRED_KEYWORDS, voices)
+	utterance.lang = inputLang.value
+	utterance.rate = isEn ? 1.0 : 0.9
+	const keywords = isEn ? EN_US_PREFERRED_KEYWORDS : ZH_TW_PREFERRED_KEYWORDS
+	const preferredVoice = getPreferredVoice(inputLang.value, keywords, voices)
 	if (preferredVoice) { utterance.voice = preferredVoice; utterance.lang = preferredVoice.lang }
 	utterance.onend = () => { isSpeaking.value = false }
 	utterance.onerror = () => { isSpeaking.value = false }
@@ -235,6 +260,12 @@ const toggleSpeech = async () => {
 	window.speechSynthesis.speak(await createUtterance())
 	isSpeaking.value = true
 }
+
+watch(inputLang, () => {
+	spokenText.value = ''
+	stopListening()
+	if (isSpeaking.value) { window.speechSynthesis?.cancel(); isSpeaking.value = false }
+})
 
 onMounted(() => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
