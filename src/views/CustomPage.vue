@@ -26,7 +26,30 @@
 				class="mb-4 rounded-lg border border-stone-200 bg-white/90 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90"
 			>
 				<div class="mb-2 text-xl font-bold text-stone-800 dark:text-stone-100">
-					2) 請念一遍上面的文字
+					2) 按鍵朗讀（台灣口音優先）
+				</div>
+				<p class="mb-3 leading-relaxed text-stone-600 dark:text-zinc-300">
+					使用說明：按「開始朗讀」播放，按「停止朗讀」可立即停止。語音會優先使用 zh-TW 與台灣相關語音。
+				</p>
+				<div class="flex flex-wrap items-center gap-3">
+					<button
+						type="button"
+						class="rounded border-0 px-4 py-2 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+						:class="isSpeaking ? 'bg-red-500' : 'bg-emerald-500'"
+						:disabled="voicePlaybackBlocked"
+						@click="toggleSpeech"
+					>
+						{{ isSpeaking ? '停止朗讀' : '開始朗讀' }}
+					</button>
+					<span class="text-sm text-stone-600 dark:text-zinc-400">{{ statusText }}</span>
+				</div>
+			</section>
+
+			<section
+				class="mb-4 rounded-lg border border-stone-200 bg-white/90 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90"
+			>
+				<div class="mb-2 text-xl font-bold text-stone-800 dark:text-stone-100">
+					3) 請念一遍上面的文字
 				</div>
 				<p class="mb-1 leading-relaxed text-stone-600 dark:text-zinc-300">
 					按「開始錄音」後，對麥克風念出上方文字，結束後按「停止錄音」。
@@ -59,10 +82,10 @@
 				class="mb-4 rounded-lg border border-stone-200 bg-white/90 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90"
 			>
 				<div class="mb-2 text-xl font-bold text-stone-800 dark:text-stone-100">
-					3) 兩個答案有沒有差別呢
+					4) 兩個答案有沒有差別呢
 				</div>
 				<div v-if="!spokenText.trim()" class="text-stone-400 dark:text-zinc-500">
-					請先完成第 2) 步驟的語音輸入。
+					請先完成第 3) 步驟的語音輸入。
 				</div>
 				<template v-else>
 					<div class="mb-3 flex items-center gap-4">
@@ -83,29 +106,6 @@
 						比對方式：去除空白與標點後，以字元編輯距離計算相似度。
 					</p>
 				</template>
-			</section>
-
-			<section
-				class="mb-4 rounded-lg border border-stone-200 bg-white/90 p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90"
-			>
-				<div class="mb-2 text-xl font-bold text-stone-800 dark:text-stone-100">
-					4) 按鍵朗讀（台灣口音優先）
-				</div>
-				<p class="mb-3 leading-relaxed text-stone-600 dark:text-zinc-300">
-					使用說明：按「開始朗讀」播放，按「停止朗讀」可立即停止。語音會優先使用 zh-TW 與台灣相關語音。
-				</p>
-				<div class="flex flex-wrap items-center gap-3">
-					<button
-						type="button"
-						class="rounded border-0 px-4 py-2 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
-						:class="isSpeaking ? 'bg-red-500' : 'bg-emerald-500'"
-						:disabled="voicePlaybackBlocked"
-						@click="toggleSpeech"
-					>
-						{{ isSpeaking ? '停止朗讀' : '開始朗讀' }}
-					</button>
-					<span class="text-sm text-stone-600 dark:text-zinc-400">{{ statusText }}</span>
-				</div>
 			</section>
 		</div>
 	</div>
