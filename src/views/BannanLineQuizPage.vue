@@ -178,6 +178,56 @@ const MAOKONG_STATIONS: Station[] = [
   { id: 'MK04', name: '貓空', hint: '纜車南端終點，貓空茶園與景觀餐廳聚集，台北著名茶文化勝地' },
 ]
 
+const STATION_ENGLISH: Record<string, string> = {
+  // 板南線 Bannan Line
+  BL01: 'Dingpu', BL02: 'Yongning', BL03: 'Tucheng', BL04: 'Haishan',
+  BL05: 'Far Eastern Hospital', BL06: 'Fuzhong', BL07: 'Banqiao', BL08: 'Xinpu',
+  BL09: 'Jiangzicui', BL10: 'Longshan Temple', BL11: 'Ximen', BL12: 'Taipei Main Station',
+  BL13: 'Shandao Temple', BL14: 'Zhongxiao Xinsheng', BL15: 'Zhongxiao Fuxing',
+  BL16: 'Zhongxiao Dunhua', BL17: 'Sun Yat-Sen Memorial Hall', BL18: 'Taipei City Hall',
+  BL19: 'Yongchun', BL20: 'Houshanpi', BL21: 'Kunyang', BL22: 'Nangang',
+  BL23: 'Taipei Nangang Exhibition Center',
+  // 淡水信義線 Tamsui-Xinyi Line
+  R28: 'Tamsui', R27: 'Hongshulin', R26: 'Zhuwei', R25: 'Guandu',
+  R24: 'Zhongyi', R23: 'Fuxinggang', R22: 'Beitou', R21: 'Qiyan',
+  R20: 'Qilian', R19: 'Shipai', R18: 'Mingde', R17: 'Zhishan',
+  R16: 'Shilin', R15: 'Jiantan', R14: 'Yuanshan', R13: 'Minquan W. Rd.',
+  R12: 'Shuanglian', R11: 'Zhongshan', R10: 'Taipei Main Station', R09: 'NTU Hospital',
+  R08: 'Chiang Kai-Shek Memorial Hall', R07: 'Dongmen', R06: 'Daan Park',
+  R05: 'Daan', R04: 'Xinyi Anhe', R03: 'Taipei 101/World Trade Center', R02: 'Xiangshan',
+  // 環狀線 Circular Line
+  Y07: 'Dapinglin', Y08: 'Shisizhang', Y09: 'Xiulang Bridge', Y10: 'Jingping',
+  Y11: 'Jingan', Y12: 'Zhonghe', Y13: 'Qiaohe', Y14: 'Zhongyuan',
+  Y15: 'Banxin', Y16: 'Banqiao', Y17: 'Xinpu Minsheng', Y18: 'Touqianzhuang',
+  Y19: 'Xinfu', Y20: 'New Taipei Industrial Park',
+  // 文湖線 Wenhu Line
+  BR01: 'Taipei Zoo', BR02: 'Muzha', BR03: 'Wanfang Community', BR04: 'Wanfang Hospital',
+  BR05: 'Xinhai', BR06: 'Linguang', BR07: 'Liuzhangli', BR08: 'Technology Building',
+  BR09: 'Daan', BR10: 'Zhongxiao Fuxing', BR11: 'Nanjing Fuxing',
+  BR12: 'Zhongshan Junior High School', BR13: 'Songshan Airport', BR14: 'Dazhi',
+  BR15: 'Jiannan Rd.', BR16: 'Xihu', BR17: 'Gangqian', BR18: 'Wende',
+  BR19: 'Neihu', BR20: 'Dahu Park', BR21: 'Huzhou', BR22: 'Donghu',
+  BR23: 'Nangang Software Park', BR24: 'Taipei Nangang Exhibition Center',
+  // 松山新店線 Songshan-Xindian Line
+  G01: 'Xindian', G02: 'Xindian District Office', G03: 'Qizhang', G03A: 'Xiaobitan',
+  G04: 'Dapinglin', G05: 'Jingmei', G06: 'Wanlong', G07: 'Gongguan',
+  G08: 'Taipower Building', G09: 'Guting', G10: 'Chiang Kai-Shek Memorial Hall',
+  G11: 'Xiaonanmen', G12: 'Beimen', G13: 'Zhongshan', G14: 'Songjiang Nanjing',
+  G15: 'Nanjing Fuxing', G16: 'Taipei Arena', G17: 'Nanjing Sanmin',
+  G18: 'Songshan', G19: 'Nangang',
+  // 中和新蘆線 Zhonghe-Xinlu Line
+  O01: 'Nanshijiao', O02: 'Jingan', O03: 'Yongan Market', O04: 'Dingxi',
+  O05: 'Guting', O06: 'Dongmen', O07: 'Zhongxiao Xinsheng', O08: 'Songjiang Nanjing',
+  O09: 'Xingtian Temple', O10: 'Zhongshan Elementary School', O11: 'Minquan W. Rd.',
+  O12: 'Daqiaotou', O13: 'Taipei Bridge', O14: 'Cailiao', O15: 'Sanchong',
+  O16: 'Xianse Temple', O17: 'Touqianzhuang', O18: 'Xinzhuang', O19: 'Fu Jen University',
+  O20: 'Danfeng', O21: 'Huilong', O50: 'Sanchong Elementary School',
+  O51: 'Sanhe Junior High School', O52: 'St. Ignatius High School',
+  O53: 'Sanmin Senior High School', O54: 'Luzhou',
+  // 貓空纜車 Maokong Gondola
+  MK01: 'Taipei Zoo', MK02: 'Taipei Zoo South', MK03: 'Zhinangong', MK04: 'Maokong',
+}
+
 const METRO_LINES: MetroLine[] = [
   {
     key: 'bannan',
@@ -396,6 +446,10 @@ let fwParticles: Array<{
 let fwRunning = false
 let fwRaf: number | null = null
 let speakSessionId = 0
+let enSpeakSessionId = 0
+let nextForceStation: Station | null = null
+const enReplayBusy = ref(false)
+const enSpeakingOptionIndex = ref<number | null>(null)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
 const timedMode = ref(false)
@@ -410,9 +464,12 @@ async function refreshZhVoice() {
 
 function stopSpeech() {
   speakSessionId++
+  enSpeakSessionId++
   if (ttsSupported) window.speechSynthesis.cancel()
   speakingOptionIndex.value = null
   replayBusy.value = false
+  enReplayBusy.value = false
+  enSpeakingOptionIndex.value = null
 }
 
 function stopTimer() {
@@ -505,13 +562,50 @@ async function speakOptionsSequentially() {
 }
 
 function speakStationLabel(name: string) {
-  if (!ttsSupported || !voicePlaybackAvailable.value || !voiceEnabled.value || !zhVoice.value) return
+  if (!ttsSupported || !voicePlaybackAvailable.value) return
   labelFlashName.value = name
   window.setTimeout(() => {
     if (labelFlashName.value === name) labelFlashName.value = null
   }, 1000)
   window.speechSynthesis.cancel()
   window.speechSynthesis.speak(attachUtterance(getSpokenStationName(name), speechRate.value))
+}
+
+function speakEnglishOptionsSequentially() {
+  if (!ttsSupported || !voicePlaybackAvailable.value) return
+  const sessionId = ++enSpeakSessionId
+  speakSessionId++ // cancel any Chinese sequential speech
+  speakingOptionIndex.value = null
+  replayBusy.value = false
+  enReplayBusy.value = true
+  window.speechSynthesis.cancel()
+
+  const stations = currentStations.value
+  const opts = currentOptions.value
+  let i = 0
+
+  const speakNext = () => {
+    if (sessionId !== enSpeakSessionId) { enReplayBusy.value = false; enSpeakingOptionIndex.value = null; return }
+    if (i >= opts.length) { enReplayBusy.value = false; enSpeakingOptionIndex.value = null; return }
+    const name = opts[i]!
+    const station = stations.find(s => s.name === name)
+    const english = station ? STATION_ENGLISH[station.id] : undefined
+    if (!english) { i++; window.setTimeout(speakNext, 0); return }
+    enSpeakingOptionIndex.value = i
+    const u = new SpeechSynthesisUtterance(english)
+    u.lang = 'en-US'
+    u.rate = speechRate.value
+    u.onend = () => {
+      if (sessionId !== enSpeakSessionId) return
+      enSpeakingOptionIndex.value = null
+      i++
+      window.setTimeout(speakNext, 350)
+    }
+    u.onerror = () => { enReplayBusy.value = false; enSpeakingOptionIndex.value = null }
+    window.speechSynthesis.speak(u)
+  }
+
+  speakNext()
 }
 
 function speakFeedback(isRight: boolean, name: string) {
@@ -568,6 +662,7 @@ const resultMessage = computed(() => {
 function initGame() {
   stopSpeech()
   stopTimer()
+  nextForceStation = null
   pool.value = buildPool()
   current.value = 0
   roundScore.value = 0
@@ -608,6 +703,9 @@ function chooseOption(name: string) {
     score.value++
     roundScore.value++
     window.setTimeout(() => launchFireworks(), 100)
+    nextForceStation = null
+  } else {
+    nextForceStation = currentStations.value.find(s => s.name === name) ?? null
   }
   history.value.push({ station: correct, correct: isRight })
 
@@ -634,6 +732,7 @@ function onChoose(label: string) {
 
 function nextQuestion() {
   stopSpeech()
+  const prevCorrectName = pool.value[current.value]?.name
   current.value++
   wrongPick.value = null
   if (current.value >= questionCount.value) {
@@ -644,6 +743,17 @@ function nextQuestion() {
       )
     }, 300)
     return
+  }
+  if (nextForceStation !== null) {
+    pool.value[current.value] = nextForceStation
+    nextForceStation = null
+  } else if (prevCorrectName && pool.value[current.value]?.name === prevCorrectName) {
+    const altIdx = pool.value.findIndex((s, i) => i > current.value && s.name !== prevCorrectName)
+    if (altIdx !== -1) {
+      const temp = pool.value[current.value]!
+      pool.value[current.value] = pool.value[altIdx]!
+      pool.value[altIdx] = temp
+    }
   }
   prepareQuestion()
 }
@@ -659,7 +769,7 @@ function optionClassFor(idx: number, label: string) {
 	if (!answered.value) {
 		const pi = optionPaletteByIndex.value[idx] ?? 0
 		base.push(OPT_PALETTES[pi % OPT_PALETTES.length]!)
-		if (speakingOptionIndex.value === idx) base.push('quiz-opt-speaking')
+		if (speakingOptionIndex.value === idx || enSpeakingOptionIndex.value === idx) base.push('quiz-opt-speaking')
 		base.push(
 			'hover:not(:disabled):-translate-y-px hover:not(:disabled):border-[var(--blue)] hover:not(:disabled):bg-[var(--blue-light)] hover:not(:disabled):text-[var(--blue-dark)]',
 		)
@@ -975,6 +1085,18 @@ watch(fireworksCanvas, (c) => {
 					<span class="text-[15px] leading-none">🔈</span>
 					播報題目
 				</button>
+				<button
+					type="button"
+					class="flex items-center gap-1 rounded-lg border px-3 py-1 text-[13px] font-medium transition disabled:cursor-default disabled:opacity-40"
+					:class="enReplayBusy
+						? 'border-teal-600 bg-teal-500 text-white dark:border-teal-400 dark:bg-teal-600'
+						: 'border-teal-300 bg-teal-50 text-teal-800 hover:bg-teal-100 dark:border-teal-700 dark:bg-teal-950/40 dark:text-teal-300 dark:hover:bg-teal-900/50'"
+					:disabled="enReplayBusy || voicePlaybackBlocked"
+					@click="speakEnglishOptionsSequentially"
+				>
+					<span class="text-[15px] leading-none">🔈</span>
+					{{ enReplayBusy ? '播報中…' : '英文播報' }}
+				</button>
 				<div class="flex w-full items-center gap-1.5 text-[12px] text-slate-500 sm:ml-auto sm:w-auto dark:text-zinc-400">
 					速度：
 					<select
@@ -1017,7 +1139,7 @@ watch(fireworksCanvas, (c) => {
 								class="station-label clickable disabled:cursor-not-allowed disabled:opacity-45"
 								:title="'點我聽讀：' + s.name"
 								:class="{ 'label-speaking': labelFlashName === s.name }"
-								:disabled="voicePlaybackBlocked || !voiceEnabled"
+								:disabled="voicePlaybackBlocked"
 								@click="speakStationLabel(s.name)"
 							>
 								{{ s.name }}

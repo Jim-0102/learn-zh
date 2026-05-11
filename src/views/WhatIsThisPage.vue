@@ -71,24 +71,32 @@
 
 					<div class="mb-3 flex flex-wrap items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
 						<label class="flex cursor-pointer items-center gap-1.5">
-							<input type="checkbox" v-model="slowMode" class="accent-amber-500" />
-							🐢 慢速語音播放
+							<input
+								type="checkbox"
+								:checked="slowRate === 50"
+								class="accent-amber-500"
+								@change="slowRate = slowRate === 50 ? 0 : 50"
+							/>
+							🐢 慢速語音播放 50%
 						</label>
-						<a
-							:href="resultZh ? '/custom?text=' + encodeURIComponent(resultZh) : '/custom'"
-							class="rounded-md border border-stone-300 px-3 py-1 text-xs text-zinc-600 no-underline transition hover:border-emerald-500/70 hover:text-emerald-700 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-400/60 dark:hover:text-emerald-400"
-						>
-							進入自訂朗讀遊戲 →
-						</a>
+						<label class="flex cursor-pointer items-center gap-1.5">
+							<input
+								type="checkbox"
+								:checked="slowRate === 25"
+								class="accent-amber-500"
+								@change="slowRate = slowRate === 25 ? 0 : 25"
+							/>
+							🐢 慢速語音播放 25%
+						</label>
 					</div>
 					<div class="flex flex-wrap gap-2">
 						<button
 							type="button"
 							class="rounded border-0 bg-emerald-500 px-4 py-2 text-base text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-45"
-							:disabled="voicePlaybackBlocked"
+							:disabled="zhPlaying || (azureFallbackActive && voicePlaybackBlocked)"
 							@click="playZhAudio"
 						>
-							播放華文發音
+							{{ zhPlaying ? '播放中...' : '播放華文發音' }}
 						</button>
 						<button
 							type="button"
@@ -99,11 +107,17 @@
 							播放英文發音
 						</button>
 					</div>
-
 					<div v-if="srSupported" class="mt-4 space-y-4 border-t border-stone-200 pt-4 dark:border-zinc-700">
 						<!-- Chinese pronunciation -->
 						<div>
-							<p class="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">華文朗讀練習</p>
+							<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+								<p class="m-0 text-sm font-medium text-zinc-600 dark:text-zinc-400">華文朗讀練習</p>
+								<a
+									v-if="resultZh"
+									:href="'/custom?text=' + encodeURIComponent(resultZh) + '&lang=zh-TW'"
+									class="rounded-md border border-stone-300 px-3 py-1 text-xs text-zinc-600 no-underline transition hover:border-emerald-500/70 hover:text-emerald-700 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-400/60 dark:hover:text-emerald-400"
+								>進入自訂朗讀遊戲 →</a>
+							</div>
 							<div class="mb-2 flex flex-wrap items-center gap-3">
 								<button
 									type="button"
@@ -128,7 +142,14 @@
 						</div>
 						<!-- English pronunciation -->
 						<div>
-							<p class="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">英文朗讀練習</p>
+							<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+								<p class="m-0 text-sm font-medium text-zinc-600 dark:text-zinc-400">英文朗讀練習</p>
+								<a
+									v-if="resultEn"
+									:href="'/custom?text=' + encodeURIComponent(resultEn) + '&lang=en-US'"
+									class="rounded-md border border-stone-300 px-3 py-1 text-xs text-zinc-600 no-underline transition hover:border-emerald-500/70 hover:text-emerald-700 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-400/60 dark:hover:text-emerald-400"
+								>進入自訂朗讀遊戲 →</a>
+							</div>
 							<div class="mb-2 flex flex-wrap items-center gap-3">
 								<button
 									type="button"
@@ -525,16 +546,71 @@ export default defineComponent({
 			}
 		}
 
-		const slowMode = ref(false)
+		const slowRate = ref<0 | 50 | 25>(0)
+		const zhPlaying = ref(false)
 
-		const playZhAudio = () => {
+		const AZURE_FALLBACK_KEY = 'azure_tts_fallback_until'
+		const azureFallbackActive = ref(false)
+
+		function checkAzureFallback(): boolean {
+			const until = parseInt(localStorage.getItem(AZURE_FALLBACK_KEY) ?? '0') || 0
+			return Date.now() < until
+		}
+
+		function setAzureFallback() {
+			const now = new Date()
+			const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+			localStorage.setItem(AZURE_FALLBACK_KEY, nextMonth.getTime().toString())
+			azureFallbackActive.value = true
+		}
+
+		function speakZhFallback() {
 			if (!voicePlaybackAvailable.value) return
-			speakTextWithPreferredVoice(resultZh.value, 'zh-TW', ZH_TW_PREFERRED_KEYWORDS, slowMode.value ? 0.5 : 0.72)
+			const rate = slowRate.value === 50 ? 0.5 : slowRate.value === 25 ? 0.25 : 0.72
+			speakTextWithPreferredVoice(resultZh.value, 'zh-TW', ZH_TW_PREFERRED_KEYWORDS, rate)
+		}
+
+		const playZhAudio = async () => {
+			if (zhPlaying.value || !resultZh.value) return
+
+			if (azureFallbackActive.value) {
+				speakZhFallback()
+				return
+			}
+
+			window.speechSynthesis?.cancel()
+			zhPlaying.value = true
+			try {
+				const rateParam = slowRate.value === 50 ? '-50%' : slowRate.value === 25 ? '-75%' : undefined
+				const body: Record<string, string> = { text: resultZh.value }
+				if (rateParam) body.rate = rateParam
+				const res = await fetch('/api/tts', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(body),
+				})
+				if (res.status === 429) {
+					setAzureFallback()
+					zhPlaying.value = false
+					speakZhFallback()
+					return
+				}
+				if (!res.ok) throw new Error('TTS error')
+				const blob = await res.blob()
+				const audioUrl = URL.createObjectURL(blob)
+				const audio = new Audio(audioUrl)
+				audio.onended = () => { zhPlaying.value = false; URL.revokeObjectURL(audioUrl) }
+				audio.onerror = () => { zhPlaying.value = false; URL.revokeObjectURL(audioUrl) }
+				await audio.play()
+			} catch {
+				zhPlaying.value = false
+			}
 		}
 
 		const playEnAudio = () => {
 			if (!voicePlaybackAvailable.value) return
-			speakTextWithPreferredVoice(resultEn.value, 'en-US', EN_US_PREFERRED_KEYWORDS, slowMode.value ? 0.5 : 1.0)
+			const rate = slowRate.value === 50 ? 0.5 : slowRate.value === 25 ? 0.25 : 1.0
+			speakTextWithPreferredVoice(resultEn.value, 'en-US', EN_US_PREFERRED_KEYWORDS, rate)
 		}
 
 		const openCamera = async () => {
@@ -587,6 +663,7 @@ export default defineComponent({
 		onMounted(() => {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			srSupported.value = !!((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition)
+			azureFallbackActive.value = checkAzureFallback()
 		})
 
 		onUnmounted(() => {
@@ -609,7 +686,9 @@ export default defineComponent({
 			showCamera,
 			openCamera,
 			takePhoto,
-			slowMode,
+			slowRate,
+			zhPlaying,
+			azureFallbackActive,
 			spokenText,
 			listening,
 			srSupported,

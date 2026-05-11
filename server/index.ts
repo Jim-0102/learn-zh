@@ -1,6 +1,10 @@
 interface Env {
 	SITUATIONS_KV: KVNamespace
 	EDITOR_SECRET?: string
+	AZURE_SPEECH_KEY?: string
+	AZURE_SPEECH_REGION?: string
+	CF_IMAGES_ACCOUNT_ID?: string
+	CF_IMAGES_API_TOKEN?: string
 	AI: {
 		run: (model: string, input: unknown) => Promise<any>
 	}
@@ -51,6 +55,53 @@ export default {
 			}
 		}
 
+		if (url.pathname === '/api/tts') {
+			if (request.method !== 'POST') {
+				return Response.json({ error: 'POST only' }, { status: 405 })
+			}
+			const allowedOrigin = 'https://learn-zh.jim-aca.workers.dev'
+			const origin = request.headers.get('Origin') ?? ''
+			const referer = request.headers.get('Referer') ?? ''
+			if (!origin.startsWith(allowedOrigin) && !referer.startsWith(allowedOrigin)) {
+				return Response.json({ error: 'Forbidden' }, { status: 403 })
+			}
+			if (!env.AZURE_SPEECH_KEY || !env.AZURE_SPEECH_REGION) {
+				return Response.json({ error: 'Azure TTS not configured' }, { status: 503 })
+			}
+			const { text, rate } = await request.json() as { text: string; rate?: string }
+			if (!text || typeof text !== 'string') {
+				return Response.json({ error: 'text required' }, { status: 400 })
+			}
+			const inner = rate
+				? `<prosody rate='${rate}'>${escapeXml(text)}</prosody>`
+				: escapeXml(text)
+			const ssml = `<speak version='1.0' xml:lang='zh-TW'><voice name='zh-TW-HsiaoChenNeural'>${inner}</voice></speak>`
+			const azureRes = await fetch(
+				`https://${env.AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`,
+				{
+					method: 'POST',
+					headers: {
+						'Ocp-Apim-Subscription-Key': env.AZURE_SPEECH_KEY,
+						'Content-Type': 'application/ssml+xml',
+						'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+						'User-Agent': 'learn-zh',
+					},
+					body: ssml,
+				},
+			)
+			if (!azureRes.ok) {
+				const status = azureRes.status === 429 ? 429 : 502
+				return Response.json({ error: `Azure TTS error ${azureRes.status}` }, { status })
+			}
+			const audioBuffer = await azureRes.arrayBuffer()
+			return new Response(audioBuffer, {
+				headers: {
+					'Content-Type': 'audio/mpeg',
+					'Cache-Control': 'no-store',
+				},
+			})
+		}
+
 		if (url.pathname === '/api/situations/questions') {
 			if (request.method === 'GET') {
 				const raw = await env.SITUATIONS_KV.get(KV_KEY)
@@ -70,6 +121,36 @@ export default {
 			}
 		}
 
+		if (url.pathname === '/api/upload-image') {
+			if (request.method !== 'POST') return Response.json({ error: 'POST only' }, { status: 405 })
+			const token = (request.headers.get('Authorization') ?? '').replace('Bearer ', '')
+			if (!env.EDITOR_SECRET || token !== env.EDITOR_SECRET) {
+				return new Response('Unauthorized', { status: 401 })
+			}
+			if (!env.CF_IMAGES_ACCOUNT_ID || !env.CF_IMAGES_API_TOKEN) {
+				return Response.json({ error: 'Cloudflare Images not configured' }, { status: 503 })
+			}
+			const body = await request.formData()
+			const file = body.get('file')
+			if (!(file instanceof File)) {
+				return Response.json({ error: 'file field required' }, { status: 400 })
+			}
+			const uploadForm = new FormData()
+			uploadForm.append('file', file)
+			const cfRes = await fetch(
+				`https://api.cloudflare.com/client/v4/accounts/${env.CF_IMAGES_ACCOUNT_ID}/images/v1`,
+				{ method: 'POST', headers: { Authorization: `Bearer ${env.CF_IMAGES_API_TOKEN}` }, body: uploadForm },
+			)
+			if (!cfRes.ok) {
+				const err = await cfRes.text()
+				return Response.json({ error: `CF Images error ${cfRes.status}: ${err}` }, { status: 502 })
+			}
+			const data = await cfRes.json() as { result?: { variants?: string[] } }
+			const imageUrl = data.result?.variants?.[0]
+			if (!imageUrl) return Response.json({ error: 'No URL in response' }, { status: 502 })
+			return Response.json({ url: imageUrl })
+		}
+
 		if (url.pathname.startsWith('/api/')) {
 			return Response.json({ name: 'Cloudflare' })
 		}
@@ -77,6 +158,15 @@ export default {
 		return new Response(null, { status: 404 })
 	},
 } satisfies ExportedHandler<Env>
+
+function escapeXml(text: string): string {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&apos;')
+}
 
 interface ImageRequestPayload {
 	image: string

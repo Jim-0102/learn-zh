@@ -4,9 +4,57 @@ import { RouterLink } from 'vue-router'
 const features = [
 	{
 		to: '/what-is-this',
-		emoji: '🤖',
+		emoji: '📷',
 		title: 'AI 圖片學',
-		desc: '拍下身邊的任何物品，AI 立刻告訴你華文怎麼說。生活即教室，隨時隨地都能學華文。',
+		desc: '拍下身邊的任何物品，AI 立刻給出華文與英文說法，並可播放發音。看完結果後，可直接進入朗讀練習，用語音跟讀並獲得即時相似度評分。',
+	},
+	{
+		to: '/flashcards/body',
+		emoji: '🃏',
+		title: '字卡測驗',
+		desc: '健康、情緒、在家情境、數字四大主題混合出題。看圖從四個句子中選出正確答案，支援中英文語音播報，答對即觸發煙花特效。答錯的題目排到最後重考，全部答對才結算。',
+	},
+	{
+		to: '/mrt-quiz',
+		emoji: '🎧',
+		title: '語音選站名',
+		desc: '聽華文或英文站名語音，從四個選項中選出正確答案。每輪 20 題，結束後顯示得分與答題紀錄。連續答對還有獎勵！',
+	},
+	{
+		to: '/bopomofo-quiz',
+		emoji: '🀄',
+		title: '注音符號測驗',
+		desc: '看注音符號說出例字，用語音輸入作答。37 個注音符號，每輪 20 題，支援計時模式，挑戰你的注音反應力！',
+	},
+	{
+		to: '/alphabet-quiz',
+		emoji: '🔡',
+		title: '英文字母測驗',
+		desc: '看英文字母選對應單字，支援大寫與小寫切換。26 個字母，每輪 20 題，支援語音播報與計時模式！',
+	},
+	{
+		to: '/custom',
+		emoji: '🎙️',
+		title: '自訂朗讀',
+		desc: '輸入中文或英文文字，立即聆聽標準發音。支援語音輸入、慢速播放，並可跟讀後與原文比對相似度分數。',
+	},
+	{
+		to: '/taiwan-map-quiz',
+		emoji: '🗺️',
+		title: '台灣縣市地圖測驗',
+		desc: '地圖上的紫色是哪個縣市？聽語音選答案，支援語音輸入直接說出縣市名稱，認識台灣各縣市地理位置。',
+	},
+	{
+		to: '/train-station-quiz',
+		emoji: '🚆',
+		title: '台灣火車站測驗',
+		desc: '從板橋出發，選擇南下或北上，環島一圈依序停靠 10 個車站。51 個車站涵蓋西部幹線、宜蘭線、花東線與南迴線，火車沿著軌道移動。支援語音播放、語音輸入，並附臺鐵觀光地圖。',
+	},
+	{
+		to: '/bannan-line-quiz',
+		emoji: '🚇',
+		title: '站名學習',
+		desc: '搭配路線圖，認識台北捷運七條路線的華文站名。支援中文與英文語音播報四個選項，逐題累積積分，輕鬆建立生活用字庫。',
 	},
 	{
 		to: '/situations',
@@ -15,34 +63,16 @@ const features = [
 		desc: '依據圖片與對話判斷情境，分級題型可持續擴充題庫與圖片。',
 	},
 	{
-		to: '/mrt-quiz',
-		emoji: '🚇',
-		title: '語音選站名',
-		desc: '聽站名、猜路線，用台北捷運練習華文地名發音。連續答對還有獎勵！',
+		href: 'https://filedn.eu/ldt9Roov20oh8G5emLf3VCj/tools/MPS.html',
+		emoji: '🀄',
+		title: '注音符號閃卡（外部連結）',
+		desc: '翻轉閃卡練習注音符號，加強符號辨識與記憶。',
 	},
 	{
-		to: '/custom',
-		emoji: '🎙️',
-		title: '自訂朗讀',
-		desc: '輸入任何華文文字，立即聆聽標準發音。反覆練習、聽說並進，讓口語越來越自然。',
-	},
-	{
-		to: '/taiwan-map-quiz',
-		emoji: '🗺️',
-		title: '台灣縣市地圖測驗',
-		desc: '地圖上的紫色是哪個縣市？聽語音選答案，認識台灣各縣市地理位置。',
-	},
-	{
-		to: '/bannan-line-quiz',
-		emoji: '🚇',
-		title: '站名學習',
-		desc: '搭配路線圖與語音，認識台北捷運各站華文站名。以選擇題練習，輕鬆建立生活用字庫。',
-	},
-	{
-		to: '/flashcards/body',
-		emoji: '🃏',
-		title: '華文字卡（Flashcards）',
-		desc: '用圖片搭配華文句子學習，支援台灣口音華文朗讀。可快速切換身體、情緒、在家情境與數字主題。',
+		href: 'https://www.ifreesite.com/bopomofo-edu-2.htm',
+		emoji: '📋',
+		title: '注音符號表（外部連結）',
+		desc: '完整注音符號對照表，含聲母、韻母與聲調說明，適合查閱與複習。',
 	},
 	{
 		href: 'https://freemath-5yx.pages.dev/coin-exchange',
@@ -66,10 +96,10 @@ const cardClass =
 	<main class="mx-auto max-w-3xl px-6 pb-16 pt-8">
 		<section class="px-2 py-10 text-center sm:py-12">
 			<div class="mb-2 text-5xl">🇹🇼</div>
-			<h1 class="mb-3 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+			<h1 class="mb-3 text-xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-100">
 				學齡前的早療小教室
 			</h1>
-			<p class="text-lg text-zinc-600 opacity-90 dark:text-zinc-300">
+			<p class="text-sm text-zinc-600 opacity-90 sm:text-lg dark:text-zinc-300">
 				用最直覺的方式，讓華文學習融入每一天
 			</p>
 		</section>

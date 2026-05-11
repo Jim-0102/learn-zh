@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#10b981"/>
+  <text
+    x="256" y="256"
+    font-size="260"
+    text-anchor="middle"
+    dominant-baseline="central"
+    fill="white"
+    font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif"
+    font-weight="700">早</text>
+</svg>

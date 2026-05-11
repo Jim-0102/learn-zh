@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watchEffect } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import { RouterLink, RouterView } from 'vue-router'
 import QRCode from 'qrcode'
 import HelloWorld from './components/HelloWorld.vue'
 import { useSpeechAvailability } from './composables/useSpeechAvailability'
@@ -8,17 +8,34 @@ import { useSpeechAvailability } from './composables/useSpeechAvailability'
 const linkClass =
 	'inline-block border-l border-stone-200 px-4 py-0.5 text-xs text-zinc-600 no-underline transition first:border-0 first:pl-0 hover:bg-emerald-500/15 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-emerald-400/10'
 const exactActiveClass = 'font-medium text-zinc-900 hover:bg-transparent dark:text-zinc-100 dark:hover:bg-transparent'
-const flashcardsDropdownClass =
-	'relative inline-block border-l border-stone-200 px-4 py-0.5 text-xs text-zinc-600 transition first:border-0 first:pl-0 dark:border-zinc-700 dark:text-zinc-300'
-const flashcardsSummaryClass =
-	'cursor-pointer list-none rounded-sm px-1 py-0.5 hover:bg-emerald-500/15 dark:hover:bg-emerald-400/10'
-const flashcardsMenuClass =
-	'absolute left-1/2 z-10 mt-2 w-40 -translate-x-1/2 rounded-md border border-stone-200 bg-stone-50 p-1 text-left shadow-md dark:border-zinc-700 dark:bg-zinc-900'
-const flashcardsMenuItemClass =
-	'block rounded-sm px-2 py-1 text-xs text-zinc-600 no-underline transition hover:bg-emerald-500/15 dark:text-zinc-300 dark:hover:bg-emerald-400/10'
+const mobileItemClass = 'block rounded-lg px-3 py-2.5 text-center text-sm font-medium text-zinc-700 no-underline transition hover:bg-emerald-500/10 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-emerald-400/10 dark:hover:text-zinc-100'
+const mobileExactActiveClass = 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
+const menuOpen = ref(false)
 const { voicePlaybackBlocked } = useSpeechAvailability()
-const route = useRoute()
-const isFlashcardsRoute = computed(() => route.path.startsWith('/flashcards/'))
+
+// ── PWA Install ───────────────────────────────────────────────────────────────
+const deferredPrompt = ref<any>(null)
+const showInstall = ref(false)
+
+onMounted(() => {
+	window.addEventListener('beforeinstallprompt', (e) => {
+		e.preventDefault()
+		deferredPrompt.value = e
+		showInstall.value = true
+	})
+	window.addEventListener('appinstalled', () => {
+		deferredPrompt.value = null
+		showInstall.value = false
+	})
+})
+
+async function installPWA() {
+	if (!deferredPrompt.value) return
+	deferredPrompt.value.prompt()
+	await deferredPrompt.value.userChoice
+	deferredPrompt.value = null
+	showInstall.value = false
+}
 
 watchEffect(() => {
 	if (typeof document === 'undefined') return
@@ -115,86 +132,108 @@ async function shareQR() {
 		</div>
 		<div class="mx-auto max-w-7xl px-4 py-3 leading-snug">
 			<HelloWorld msg="學齡前的早療小教室" />
-			<nav class="mt-3 flex w-full items-center justify-center">
-				<div class="flex flex-wrap items-center justify-center">
-					<RouterLink to="/" :class="linkClass" :exact-active-class="exactActiveClass">
-						首頁
-					</RouterLink>
-					<RouterLink to="/what-is-this" :class="linkClass" :exact-active-class="exactActiveClass">
-						AI 圖片學
-					</RouterLink>
-					<RouterLink to="/situations" :class="linkClass" :exact-active-class="exactActiveClass">
-						情境識別
-					</RouterLink>
-					<RouterLink to="/mrt-quiz" :class="linkClass" :exact-active-class="exactActiveClass">
-						語音選站名
-					</RouterLink>
-					<RouterLink to="/custom" :class="linkClass" :exact-active-class="exactActiveClass">
-						自訂朗讀
-					</RouterLink>
-					<RouterLink to="/taiwan-map-quiz" :class="linkClass" :exact-active-class="exactActiveClass">
-						縣市地圖
-					</RouterLink>
-					<RouterLink to="/bannan-line-quiz" :class="linkClass" :exact-active-class="exactActiveClass">
-						站名學習
-					</RouterLink>
-					<details :class="flashcardsDropdownClass">
-						<summary
-							:class="[
-								flashcardsSummaryClass,
-								isFlashcardsRoute ? 'font-medium text-zinc-900 dark:text-zinc-100' : '',
-							]"
+			<nav class="mt-2">
+				<!-- ── Mobile: hamburger row (< md) ── -->
+				<div class="flex items-center justify-between md:hidden">
+					<button
+						type="button"
+						class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold text-zinc-600 transition hover:bg-stone-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+						@click="menuOpen = !menuOpen"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="size-4 shrink-0">
+							<g v-if="menuOpen"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></g>
+							<g v-else><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></g>
+						</svg>
+						{{ menuOpen ? '關閉' : '選單' }}
+					</button>
+					<div class="flex items-center gap-1.5">
+						<button
+							v-if="showInstall"
+							type="button"
+							class="flex items-center gap-1 rounded-md border border-emerald-400/70 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-500/50 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
+							title="安裝為 App"
+							@click="installPWA"
 						>
-							字卡
-						</summary>
-						<div :class="flashcardsMenuClass">
-							<RouterLink to="/flashcards/body" :class="flashcardsMenuItemClass" :exact-active-class="exactActiveClass">
-								健康字卡
-							</RouterLink>
-							<RouterLink to="/flashcards/emotion" :class="flashcardsMenuItemClass" :exact-active-class="exactActiveClass">
-								情緒字卡
-							</RouterLink>
-							<RouterLink to="/flashcards/env1-at-home" :class="flashcardsMenuItemClass" :exact-active-class="exactActiveClass">
-								在家情境字卡
-							</RouterLink>
-							<RouterLink to="/flashcards/number" :class="flashcardsMenuItemClass" :exact-active-class="exactActiveClass">
-								數字字卡
-							</RouterLink>
-						</div>
-					</details>
-					<a
-						href="https://freemath-5yx.pages.dev/coin-exchange"
-						target="_blank"
-						rel="noopener"
-						:class="linkClass"
-					>
-						兌幣練習
-					</a>
-					<a
-						href="https://www.moedict.tw"
-						target="_blank"
-						rel="noopener"
-						:class="linkClass"
-					>
-						萌典
-					</a>
-					<RouterLink to="/about" :class="linkClass" :exact-active-class="exactActiveClass">
-						關於
-					</RouterLink>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-3.5">
+								<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+								<polyline points="7 10 12 15 17 10"/>
+								<line x1="12" y1="15" x2="12" y2="3"/>
+							</svg>
+							加入主畫面
+						</button>
+						<button
+							type="button"
+							class="flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-xs text-zinc-600 transition hover:border-emerald-500/60 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-emerald-400/50 dark:hover:text-zinc-100"
+							title="顯示 QR Code"
+							@click="openQR"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-3.5">
+								<rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+								<rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none" />
+								<path d="M14 14h2v2h-2z M18 14h3 M18 18h3 M14 18v3" />
+							</svg>
+							QR
+						</button>
+					</div>
 				</div>
-				<button
-					type="button"
-					class="ml-3 flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-xs text-zinc-600 transition hover:border-emerald-500/60 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-emerald-400/50 dark:hover:text-zinc-100"
-					title="顯示 QR Code"
-					@click="openQR"
+
+				<!-- ── Mobile dropdown panel ── -->
+				<div
+					v-if="menuOpen"
+					class="mt-2 rounded-xl border border-stone-200 bg-stone-50/98 shadow-lg md:hidden dark:border-zinc-700 dark:bg-zinc-900/98"
 				>
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-3.5">
-						<rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
-						<rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none" />
-						<path d="M14 14h2v2h-2z M18 14h3 M18 18h3 M14 18v3" />
-					</svg>
-					QR
-				</button>
+					<div class="grid grid-cols-2 gap-0.5 p-2">
+						<RouterLink @click="menuOpen = false" to="/" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">首頁</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/what-is-this" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">AI 圖片學</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/flashcards/body" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">字卡</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/mrt-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">語音選站名</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/bopomofo-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">注音符號</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/alphabet-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">英文字母</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/custom" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">自訂朗讀</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/taiwan-map-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">縣市地圖</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/train-station-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">火車站</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/bannan-line-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">站名學習</RouterLink>
+						<RouterLink @click="menuOpen = false" to="/situations" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">情境識別</RouterLink>
+						<a @click="menuOpen = false" href="https://filedn.eu/ldt9Roov20oh8G5emLf3VCj/tools/MPS.html" target="_blank" rel="noopener" :class="mobileItemClass">注音閃卡 ↗</a>
+						<a @click="menuOpen = false" href="https://www.ifreesite.com/bopomofo-edu-2.htm" target="_blank" rel="noopener" :class="mobileItemClass">注音符號表 ↗</a>
+						<a @click="menuOpen = false" href="https://freemath-5yx.pages.dev/coin-exchange" target="_blank" rel="noopener" :class="mobileItemClass">兌幣練習 ↗</a>
+						<a @click="menuOpen = false" href="https://www.moedict.tw" target="_blank" rel="noopener" :class="mobileItemClass">萌典 ↗</a>
+						<RouterLink @click="menuOpen = false" to="/about" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">關於</RouterLink>
+					</div>
+				</div>
+
+				<!-- ── Desktop: inline links (≥ md) ── -->
+				<div class="hidden md:flex md:w-full md:flex-wrap md:items-center md:justify-center">
+					<RouterLink to="/" :class="linkClass" :exact-active-class="exactActiveClass">首頁</RouterLink>
+					<RouterLink to="/what-is-this" :class="linkClass" :exact-active-class="exactActiveClass">AI 圖片學</RouterLink>
+					<RouterLink to="/flashcards/body" :class="linkClass" :exact-active-class="exactActiveClass">字卡</RouterLink>
+					<RouterLink to="/mrt-quiz" :class="linkClass" :exact-active-class="exactActiveClass">語音選站名</RouterLink>
+					<RouterLink to="/bopomofo-quiz" :class="linkClass" :exact-active-class="exactActiveClass">注音符號</RouterLink>
+					<RouterLink to="/alphabet-quiz" :class="linkClass" :exact-active-class="exactActiveClass">英文字母</RouterLink>
+					<RouterLink to="/custom" :class="linkClass" :exact-active-class="exactActiveClass">自訂朗讀</RouterLink>
+					<RouterLink to="/taiwan-map-quiz" :class="linkClass" :exact-active-class="exactActiveClass">縣市地圖</RouterLink>
+					<RouterLink to="/train-station-quiz" :class="linkClass" :exact-active-class="exactActiveClass">火車站</RouterLink>
+					<RouterLink to="/bannan-line-quiz" :class="linkClass" :exact-active-class="exactActiveClass">站名學習</RouterLink>
+					<RouterLink to="/situations" :class="linkClass" :exact-active-class="exactActiveClass">情境識別</RouterLink>
+					<a href="https://filedn.eu/ldt9Roov20oh8G5emLf3VCj/tools/MPS.html" target="_blank" rel="noopener" :class="linkClass">注音閃卡</a>
+					<a href="https://www.ifreesite.com/bopomofo-edu-2.htm" target="_blank" rel="noopener" :class="linkClass">注音符號表</a>
+					<a href="https://freemath-5yx.pages.dev/coin-exchange" target="_blank" rel="noopener" :class="linkClass">兌幣練習</a>
+					<a href="https://www.moedict.tw" target="_blank" rel="noopener" :class="linkClass">萌典</a>
+					<RouterLink to="/about" :class="linkClass" :exact-active-class="exactActiveClass">關於</RouterLink>
+					<button
+						type="button"
+						class="ml-3 flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-xs text-zinc-600 transition hover:border-emerald-500/60 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-emerald-400/50 dark:hover:text-zinc-100"
+						title="顯示 QR Code"
+						@click="openQR"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-3.5">
+							<rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+							<rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none" />
+							<path d="M14 14h2v2h-2z M18 14h3 M18 18h3 M14 18v3" />
+						</svg>
+						QR
+					</button>
+				</div>
 			</nav>
 		</div>
 	</header>

@@ -72,7 +72,7 @@
 						type="button"
 						class="rounded border-0 px-4 py-2 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
 						:class="isSpeaking ? 'bg-red-500' : 'bg-emerald-500'"
-						:disabled="voicePlaybackBlocked"
+						:disabled="(inputLang === 'en-US' || azureFallbackActive) && voicePlaybackBlocked"
 						@click="toggleSpeech"
 					>
 						{{ isSpeaking ? '停止朗讀' : '開始朗讀' }}
@@ -159,6 +159,27 @@ const inputLang = ref<'zh-TW' | 'en-US'>('zh-TW')
 
 const isSpeaking = ref(false)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
+
+const AZURE_FALLBACK_KEY = 'azure_tts_fallback_until'
+const azureFallbackActive = ref(false)
+let azureAudio: HTMLAudioElement | null = null
+let azureAudioUrl = ''
+
+function checkAzureFallback(): boolean {
+	const until = parseInt(localStorage.getItem(AZURE_FALLBACK_KEY) ?? '0') || 0
+	return Date.now() < until
+}
+function setAzureFallback() {
+	const now = new Date()
+	const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+	localStorage.setItem(AZURE_FALLBACK_KEY, nextMonth.getTime().toString())
+	azureFallbackActive.value = true
+}
+function stopAzureAudio() {
+	if (azureAudio) { azureAudio.pause(); azureAudio.src = ''; azureAudio = null }
+	if (azureAudioUrl) { URL.revokeObjectURL(azureAudioUrl); azureAudioUrl = '' }
+	isSpeaking.value = false
+}
 
 // ── Speech recognition ──────────────────────────────────────────────────────
 
@@ -270,13 +291,46 @@ const createUtterance = async () => {
 	return utterance
 }
 
-const toggleSpeech = async () => {
+async function startWebSpeech() {
 	if (!voicePlaybackAvailable.value || typeof window === 'undefined' || !window.speechSynthesis) return
-	if (isSpeaking.value) { window.speechSynthesis.cancel(); isSpeaking.value = false; return }
-	if (!rawText.value.trim()) return
 	window.speechSynthesis.cancel()
 	window.speechSynthesis.speak(await createUtterance())
 	isSpeaking.value = true
+}
+
+const toggleSpeech = async () => {
+	if (isSpeaking.value) {
+		if (azureAudio) { stopAzureAudio() } else { window.speechSynthesis?.cancel(); isSpeaking.value = false }
+		return
+	}
+	if (!rawText.value.trim()) return
+	if (inputLang.value === 'zh-TW' && !azureFallbackActive.value) {
+		isSpeaking.value = true
+		try {
+			const res = await fetch('/api/tts', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text: rawText.value }),
+			})
+			if (res.status === 429) {
+				setAzureFallback()
+				isSpeaking.value = false
+				await startWebSpeech()
+				return
+			}
+			if (!res.ok) { isSpeaking.value = false; return }
+			const blob = await res.blob()
+			azureAudioUrl = URL.createObjectURL(blob)
+			azureAudio = new Audio(azureAudioUrl)
+			azureAudio.onended = () => stopAzureAudio()
+			azureAudio.onerror = () => stopAzureAudio()
+			await azureAudio.play()
+		} catch {
+			isSpeaking.value = false
+		}
+		return
+	}
+	await startWebSpeech()
 }
 
 // ── Voice input for section 1 ────────────────────────────────────────────────
@@ -329,17 +383,23 @@ watch(inputLang, () => {
 	spokenText.value = ''
 	stopListening()
 	stopListeningInput()
-	if (isSpeaking.value) { window.speechSynthesis?.cancel(); isSpeaking.value = false }
+	if (azureAudio) { stopAzureAudio() }
+	else if (isSpeaking.value) { window.speechSynthesis?.cancel(); isSpeaking.value = false }
 })
 
 onMounted(() => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	srSupported.value = !!((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition)
-	const preset = new URLSearchParams(window.location.search).get('text')
+	azureFallbackActive.value = checkAzureFallback()
+	const params = new URLSearchParams(window.location.search)
+	const preset = params.get('text')
 	if (preset) rawText.value = preset
+	const lang = params.get('lang')
+	if (lang === 'en-US' || lang === 'zh-TW') inputLang.value = lang
 })
 
 onBeforeUnmount(() => {
+	if (azureAudio) stopAzureAudio()
 	if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
 	stopListening()
 	stopListeningInput()

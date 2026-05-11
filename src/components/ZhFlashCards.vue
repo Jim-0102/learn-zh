@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { useSpeechAvailability } from '@/composables/useSpeechAvailability'
 import { getPreferredZhTwFemaleVoice, getVoicesAsync } from '@/utils/speechVoice'
 
@@ -16,21 +15,6 @@ const props = defineProps<{
 
 const speakingText = ref('')
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
-
-const route = useRoute()
-const router = useRouter()
-
-const categories = [
-	{ label: '健康字卡', path: '/flashcards/body' },
-	{ label: '情緒字卡', path: '/flashcards/emotion' },
-	{ label: '在家情境字卡', path: '/flashcards/env1-at-home' },
-	{ label: '數字字卡', path: '/flashcards/number' },
-]
-
-function onCategoryChange(event: Event) {
-	const path = (event.target as HTMLSelectElement).value
-	router.push(path)
-}
 
 const speakChinese = async (text: string) => {
 	if (!voicePlaybackAvailable.value || typeof window === 'undefined' || !window.speechSynthesis) return
@@ -68,15 +52,6 @@ const speakChinese = async (text: string) => {
 				{{ title }}
 			</h1>
 			<p class="mb-4 mt-2 text-zinc-600 dark:text-zinc-400">有圖字卡｜點擊「朗讀」鈕可朗讀華文</p>
-			<select
-				:value="route.path"
-				class="w-full max-w-sm rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none ring-emerald-500/25 focus:border-emerald-500 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-				@change="onCategoryChange"
-			>
-				<option v-for="cat in categories" :key="cat.path" :value="cat.path">
-					{{ cat.label }}
-				</option>
-			</select>
 		</header>
 
 		<div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">

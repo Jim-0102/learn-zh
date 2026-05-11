@@ -42,12 +42,26 @@ function shuffle<T>(arr: T[]): T[] {
 	return a
 }
 
-function newQuestion() {
-	const idx = Math.floor(Math.random() * REGIONS.length)
-	const correct = REGIONS[idx]!
-	const others = shuffle(REGIONS.filter((_, i) => i !== idx)).slice(0, 3)
-	const choices = shuffle([correct, ...others])
-	return { correct, choices }
+interface HistoryEntry {
+	no: number
+	correctName: string
+	selectedName: string
+	wasCorrect: boolean
+}
+
+const ROUND_SIZE = 20
+
+function newQuestion(forceCorrectId?: string, excludeId?: string) {
+	if (forceCorrectId) {
+		const correct = REGIONS.find(r => r.id === forceCorrectId) ?? REGIONS[0]!
+		const others = shuffle(REGIONS.filter(r => r.id !== correct.id)).slice(0, 3)
+		return { correct, choices: shuffle([correct, ...others]) }
+	}
+	const pool = excludeId ? REGIONS.filter(r => r.id !== excludeId) : REGIONS
+	const idx = Math.floor(Math.random() * pool.length)
+	const correct = pool[idx]!
+	const others = shuffle(REGIONS.filter(r => r.id !== correct.id)).slice(0, 3)
+	return { correct, choices: shuffle([correct, ...others]) }
 }
 
 const question = ref(newQuestion())
@@ -56,6 +70,9 @@ const score = ref(0)
 const streak = ref(0)
 const totalAnswered = ref(0)
 const showReward = ref(false)
+const history = ref<HistoryEntry[]>([])
+const roundComplete = ref(false)
+let nextForceId: string | null = null
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
 
 const speakingId = ref<string | null>(null)
@@ -98,7 +115,7 @@ function startListening() {
 	recognition.start()
 }
 
-const voiceEnabled = ref(true)
+const voiceEnabled = ref(false)
 const voiceInput = ref(false)
 const timedMode = ref(false)
 const timeLeft = ref(60)
@@ -160,21 +177,29 @@ function regionFill(id: string): string {
 }
 
 function choose(region: Region) {
-	if (selected.value !== null || timeUp.value) return
+	if (selected.value !== null || timeUp.value || roundComplete.value) return
 	selected.value = region
 	totalAnswered.value++
-	if (region.id === question.value.correct.id) {
+	const wasCorrect = region.id === question.value.correct.id
+	history.value.push({ no: history.value.length + 1, correctName: question.value.correct.name, selectedName: region.name, wasCorrect })
+	if (wasCorrect) {
 		score.value++
 		streak.value++
 		speakText('答對了')
 		if (streak.value > 0 && streak.value % 5 === 0) showReward.value = true
+		nextForceId = null
 	} else {
 		streak.value = 0
+		nextForceId = region.id
 	}
 }
 
 function next() {
-	question.value = newQuestion()
+	if (history.value.length >= ROUND_SIZE) { roundComplete.value = true; return }
+	const prevId = question.value.correct.id
+	const forced = nextForceId
+	nextForceId = null
+	question.value = forced ? newQuestion(forced) : newQuestion(undefined, prevId)
 	selected.value = null
 	if (voiceEnabled.value) nextTick(() => speak())
 }
@@ -184,6 +209,7 @@ function dismissReward() { showReward.value = false; next() }
 function resetGame() {
 	timeUp.value = false; score.value = 0; streak.value = 0
 	totalAnswered.value = 0; selected.value = null
+	history.value = []; roundComplete.value = false; nextForceId = null
 	question.value = newQuestion()
 	if (timedMode.value) startTimer()
 	else if (voiceEnabled.value) nextTick(() => speak())
@@ -222,15 +248,29 @@ onBeforeUnmount(() => { stopTimer(); stopListening() })
 		</div>
 		<p v-if="voiceInput" class="mb-3 text-xs text-zinc-400 dark:text-zinc-500">建議使用 Chrome / Edge 瀏覽器</p>
 
-		<div class="mb-6 flex flex-wrap justify-center gap-5 text-sm text-zinc-700 dark:text-zinc-300">
+		<div class="mb-3 flex flex-wrap justify-center gap-5 text-sm text-zinc-700 dark:text-zinc-300">
 			<span>得分：<strong>{{ score }}</strong></span>
 			<span>連續答對：<strong>{{ streak }}</strong></span>
-			<span>作答：<strong>{{ totalAnswered }}</strong> 題</span>
+			<span>第 <strong>{{ Math.min(history.length + 1, ROUND_SIZE) }}</strong> / {{ ROUND_SIZE }} 題</span>
 			<Transition name="fade">
 				<span v-if="timedMode" :class="timeLeft <= 10 ? 'animate-pulse font-bold text-red-500' : ''">
 					⏱ <strong>{{ timeLeft }}</strong> 秒
 				</span>
 			</Transition>
+		</div>
+
+		<!-- Round progress dots -->
+		<div class="mb-5 flex flex-wrap justify-center gap-1.5">
+			<span
+				v-for="i in ROUND_SIZE"
+				:key="i"
+				class="h-3 w-3 rounded-full transition-colors duration-300"
+				:class="{
+					'bg-emerald-500': history[i - 1]?.wasCorrect === true,
+					'bg-red-400': history[i - 1]?.wasCorrect === false,
+					'bg-stone-300 dark:bg-zinc-600': history[i - 1] === undefined,
+				}"
+			/>
 		</div>
 
 		<!-- Reward overlay -->
@@ -240,6 +280,30 @@ onBeforeUnmount(() => { stopTimer(); stopListening() })
 				<h2 class="mb-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">連續答對 {{ streak }} 題！</h2>
 				<p class="mb-6 text-zinc-600 dark:text-zinc-300">太棒了，繼續加油！</p>
 				<button type="button" class="cursor-pointer rounded-xl border-0 bg-emerald-500 px-7 py-2.5 text-base font-semibold text-white transition hover:opacity-90" @click.stop="dismissReward">繼續挑戰</button>
+			</div>
+		</div>
+
+		<!-- Round complete overlay -->
+		<div v-if="roundComplete" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/55">
+			<div class="flex w-[92%] max-w-sm flex-col rounded-3xl bg-white p-8 text-center dark:bg-zinc-900" @click.stop>
+				<div class="mb-2 text-5xl">🏆</div>
+				<h2 class="mb-1 text-xl font-bold text-zinc-900 dark:text-zinc-100">本輪結束！</h2>
+				<p class="mb-0.5 text-3xl font-bold text-emerald-600 dark:text-emerald-400">{{ score }} / {{ ROUND_SIZE }}</p>
+				<p class="mb-4 text-sm text-zinc-500 dark:text-zinc-400">正確率 {{ Math.round(score / ROUND_SIZE * 100) }}%</p>
+				<div class="mb-5 max-h-64 overflow-y-auto rounded-2xl border border-stone-200 text-left dark:border-zinc-700">
+					<div
+						v-for="entry in history"
+						:key="entry.no"
+						class="flex items-baseline gap-2 border-b border-stone-100 px-3 py-2 text-sm last:border-b-0 dark:border-zinc-800"
+						:class="entry.wasCorrect ? 'bg-emerald-50/50 dark:bg-emerald-950/20' : 'bg-red-50/50 dark:bg-red-950/20'"
+					>
+						<span class="shrink-0">{{ entry.wasCorrect ? '✅' : '❌' }}</span>
+						<span class="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">第{{ entry.no }}題</span>
+						<span class="font-medium text-zinc-700 dark:text-zinc-200">{{ entry.correctName }}</span>
+						<span v-if="!entry.wasCorrect" class="ml-auto shrink-0 text-xs text-red-500">你答：{{ entry.selectedName }}</span>
+					</div>
+				</div>
+				<button type="button" class="cursor-pointer rounded-xl border-0 bg-emerald-500 px-7 py-2.5 text-base font-semibold text-white transition hover:opacity-90" @click="resetGame">再玩一次</button>
 			</div>
 		</div>
 
@@ -342,7 +406,7 @@ onBeforeUnmount(() => { stopTimer(); stopListening() })
 					class="cursor-pointer rounded-xl border-0 bg-emerald-500 px-7 py-2.5 text-base font-semibold text-white transition hover:opacity-90"
 					@click="next"
 				>
-					下一題 →
+					{{ history.length >= ROUND_SIZE ? '查看結果' : '下一題 →' }}
 				</button>
 			</div>
 		</div>

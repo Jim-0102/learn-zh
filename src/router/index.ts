@@ -93,6 +93,11 @@ const router = createRouter({
       component: () => import('../views/TaiwanMapQuizPage.vue'),
     },
     {
+      path: '/train-station-quiz',
+      name: 'train-station-quiz',
+      component: () => import('../views/TrainStationQuizPage.vue'),
+    },
+    {
       path: '/mrt-quiz',
       name: 'mrt-quiz',
       component: () => import('../views/MrtQuizPage.vue'),
@@ -110,7 +115,7 @@ const router = createRouter({
     {
       path: '/flashcards/body',
       name: 'flashcards-body',
-      component: () => import('../views/BodyPage.vue'),
+      component: () => import('../views/FlashCardQuizPage.vue'),
     },
     {
       path: '/flashcards/emotion',
@@ -126,6 +131,16 @@ const router = createRouter({
       path: '/flashcards/number',
       name: 'flashcards-number',
       component: () => import('../views/NumberPage.vue'),
+    },
+    {
+      path: '/bopomofo-quiz',
+      name: 'bopomofo-quiz',
+      component: () => import('../views/BopomofoQuizPage.vue'),
+    },
+    {
+      path: '/alphabet-quiz',
+      name: 'alphabet-quiz',
+      component: () => import('../views/AlphabetQuizPage.vue'),
     },
   ],
 })
