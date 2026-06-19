@@ -9,6 +9,9 @@ interface Env {
 	AI: {
 		run: (model: string, input: unknown) => Promise<any>
 	}
+	ASSETS: {
+		fetch: typeof fetch
+	}
 }
 
 const KV_KEY = 'questions'
@@ -191,7 +194,7 @@ export default {
 			return Response.json({ name: 'Cloudflare' })
 		}
 
-		return new Response(null, { status: 404 })
+		return env.ASSETS.fetch(request)
 	},
 } satisfies ExportedHandler<Env>
 
