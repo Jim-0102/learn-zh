@@ -1,8 +1,7 @@
 interface Env {
 	SITUATIONS_KV: KVNamespace
 	EDITOR_SECRET?: string
-	AZURE_SPEECH_KEY?: string
-	AZURE_SPEECH_REGION?: string
+	VOXCPM_SPACE_URL?: string
 	CF_IMAGES_ACCOUNT_ID?: string
 	CF_IMAGES_API_TOKEN?: string
 	AI: {
@@ -11,6 +10,7 @@ interface Env {
 }
 
 const KV_KEY = 'questions'
+const DEFAULT_VOXCPM_SPACE_URL = 'https://openbmb-voxcpm-demo.hf.space'
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
@@ -65,35 +65,24 @@ export default {
 			if (!origin.startsWith(allowedOrigin) && !referer.startsWith(allowedOrigin)) {
 				return Response.json({ error: 'Forbidden' }, { status: 403 })
 			}
-			if (!env.AZURE_SPEECH_KEY || !env.AZURE_SPEECH_REGION) {
-				return Response.json({ error: 'Azure TTS not configured' }, { status: 503 })
+			const { text, rate, control } = await request.json() as {
+				text: string
+				rate?: string
+				control?: string
 			}
-			const { text, rate } = await request.json() as { text: string; rate?: string }
 			if (!text || typeof text !== 'string') {
 				return Response.json({ error: 'text required' }, { status: 400 })
 			}
-			const inner = rate
-				? `<prosody rate='${rate}'>${escapeXml(text)}</prosody>`
-				: escapeXml(text)
-			const ssml = `<speak version='1.0' xml:lang='zh-TW'><voice name='zh-TW-HsiaoChenNeural'>${inner}</voice></speak>`
-			const azureRes = await fetch(
-				`https://${env.AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`,
-				{
-					method: 'POST',
-					headers: {
-						'Ocp-Apim-Subscription-Key': env.AZURE_SPEECH_KEY,
-						'Content-Type': 'application/ssml+xml',
-						'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
-						'User-Agent': 'learn-zh',
-					},
-					body: ssml,
-				},
-			)
-			if (!azureRes.ok) {
-				const status = azureRes.status === 429 ? 429 : 502
-				return Response.json({ error: `Azure TTS error ${azureRes.status}` }, { status })
+			let audioBuffer: ArrayBuffer
+			try {
+				audioBuffer = await generateVoxCpmAudio(text, {
+					spaceUrl: env.VOXCPM_SPACE_URL,
+					control: typeof control === 'string' ? control : controlFromRate(rate),
+				})
+			} catch (error) {
+				const message = error instanceof Error ? error.message : 'VoxCPM TTS failed'
+				return Response.json({ error: message }, { status: 502 })
 			}
-			const audioBuffer = await azureRes.arrayBuffer()
 			return new Response(audioBuffer, {
 				headers: {
 					'Content-Type': 'audio/mpeg',
@@ -159,13 +148,133 @@ export default {
 	},
 } satisfies ExportedHandler<Env>
 
-function escapeXml(text: string): string {
-	return text
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&apos;')
+interface VoxCpmOptions {
+	spaceUrl?: string
+	control?: string
+}
+
+interface GradioPredictionResponse {
+	event_id?: string
+}
+
+interface GradioFileData {
+	url?: string
+	path?: string
+	mime_type?: string
+}
+
+async function generateVoxCpmAudio(text: string, options: VoxCpmOptions): Promise<ArrayBuffer> {
+	const spaceUrl = normalizeSpaceUrl(options.spaceUrl)
+	const eventId = await submitVoxCpmGeneration(spaceUrl, text, options.control ?? '')
+	const audioUrl = await waitForVoxCpmAudioUrl(spaceUrl, eventId)
+	const audioRes = await fetch(audioUrl)
+	if (!audioRes.ok) {
+		throw new Error(`VoxCPM audio download failed ${audioRes.status}`)
+	}
+	return audioRes.arrayBuffer()
+}
+
+async function submitVoxCpmGeneration(
+	spaceUrl: string,
+	text: string,
+	control: string,
+): Promise<string> {
+	const response = await fetch(`${spaceUrl}/gradio_api/call/generate`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			data: [
+				text,
+				control,
+				null,
+				false,
+				'',
+				2.0,
+				true,
+				false,
+			],
+		}),
+	})
+	if (!response.ok) {
+		throw new Error(`VoxCPM request failed ${response.status}`)
+	}
+	const payload = await response.json() as GradioPredictionResponse
+	if (!payload.event_id) {
+		throw new Error('VoxCPM did not return an event id')
+	}
+	return payload.event_id
+}
+
+async function waitForVoxCpmAudioUrl(spaceUrl: string, eventId: string): Promise<string> {
+	const response = await fetch(`${spaceUrl}/gradio_api/call/generate/${encodeURIComponent(eventId)}`)
+	if (!response.ok) {
+		throw new Error(`VoxCPM result polling failed ${response.status}`)
+	}
+
+	const streamText = await readLimitedText(response, 256 * 1024)
+	const events = streamText.split(/\r?\n\r?\n/)
+	for (const event of events) {
+		const eventName = event.match(/^event:\s*(.+)$/m)?.[1]?.trim()
+		if (eventName === 'error') {
+			throw new Error('VoxCPM generation failed')
+		}
+		if (eventName !== 'complete') continue
+
+		const dataText = event
+			.split(/\r?\n/)
+			.filter((line) => line.startsWith('data:'))
+			.map((line) => line.slice(5).trimStart())
+			.join('\n')
+		const data = JSON.parse(dataText) as [GradioFileData]
+		const file = data[0]
+		if (file?.url) {
+			return new URL(file.url, spaceUrl).toString()
+		}
+		if (file?.path) {
+			return `${spaceUrl}/gradio_api/file=${file.path}`
+		}
+	}
+
+	throw new Error('VoxCPM did not return an audio file')
+}
+
+async function readLimitedText(response: Response, limit: number): Promise<string> {
+	const reader = response.body?.getReader()
+	if (!reader) {
+		return response.text()
+	}
+	const chunks: Uint8Array[] = []
+	let total = 0
+	while (true) {
+		const { value, done } = await reader.read()
+		if (done) break
+		if (!value) continue
+		total += value.byteLength
+		if (total > limit) {
+			throw new Error('VoxCPM response exceeded size limit')
+		}
+		chunks.push(value)
+	}
+	const bytes = new Uint8Array(total)
+	let offset = 0
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset)
+		offset += chunk.byteLength
+	}
+	return new TextDecoder().decode(bytes)
+}
+
+function normalizeSpaceUrl(spaceUrl?: string): string {
+	return (spaceUrl || DEFAULT_VOXCPM_SPACE_URL).replace(/\/+$/, '')
+}
+
+function controlFromRate(rate?: string): string {
+	if (!rate) return ''
+	const value = Number.parseFloat(rate)
+	if (Number.isNaN(value)) return ''
+	if (value < 0) return 'slow, clear Mandarin pronunciation'
+	if (value > 0) return 'natural Mandarin pronunciation with a slightly faster pace'
+	return ''
 }
 
 interface ImageRequestPayload {
