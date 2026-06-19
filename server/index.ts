@@ -1,6 +1,8 @@
 interface Env {
 	SITUATIONS_KV: KVNamespace
 	EDITOR_SECRET?: string
+	AZURE_SPEECH_KEY?: string
+	AZURE_SPEECH_REGION?: string
 	VOXCPM_SPACE_URL?: string
 	CF_IMAGES_ACCOUNT_ID?: string
 	CF_IMAGES_API_TOKEN?: string
@@ -65,30 +67,75 @@ export default {
 			if (!origin.startsWith(allowedOrigin) && !referer.startsWith(allowedOrigin)) {
 				return Response.json({ error: 'Forbidden' }, { status: 403 })
 			}
-			const { text, rate, control } = await request.json() as {
-				text: string
-				rate?: string
-				control?: string
+			if (!env.AZURE_SPEECH_KEY || !env.AZURE_SPEECH_REGION) {
+				return Response.json({ error: 'Azure TTS not configured' }, { status: 503 })
 			}
+			const { text, rate } = await request.json() as { text: string; rate?: string }
 			if (!text || typeof text !== 'string') {
 				return Response.json({ error: 'text required' }, { status: 400 })
 			}
-			let audioBuffer: ArrayBuffer
-			try {
-				audioBuffer = await generateVoxCpmAudio(text, {
-					spaceUrl: env.VOXCPM_SPACE_URL,
-					control: typeof control === 'string' ? control : controlFromRate(rate),
-				})
-			} catch (error) {
-				const message = error instanceof Error ? error.message : 'VoxCPM TTS failed'
-				return Response.json({ error: message }, { status: 502 })
+			const inner = rate
+				? `<prosody rate='${rate}'>${escapeXml(text)}</prosody>`
+				: escapeXml(text)
+			const ssml = `<speak version='1.0' xml:lang='zh-TW'><voice name='zh-TW-HsiaoChenNeural'>${inner}</voice></speak>`
+			const azureRes = await fetch(
+				`https://${env.AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`,
+				{
+					method: 'POST',
+					headers: {
+						'Ocp-Apim-Subscription-Key': env.AZURE_SPEECH_KEY,
+						'Content-Type': 'application/ssml+xml',
+						'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+						'User-Agent': 'learn-zh',
+					},
+					body: ssml,
+				},
+			)
+			if (!azureRes.ok) {
+				const status = azureRes.status === 429 ? 429 : 502
+				return Response.json({ error: `Azure TTS error ${azureRes.status}` }, { status })
 			}
+			const audioBuffer = await azureRes.arrayBuffer()
 			return new Response(audioBuffer, {
 				headers: {
 					'Content-Type': 'audio/mpeg',
 					'Cache-Control': 'no-store',
 				},
 			})
+		}
+
+		if (url.pathname === '/api/voxcpm-tts') {
+			if (request.method !== 'POST') {
+				return Response.json({ error: 'POST only' }, { status: 405 })
+			}
+			const allowedOrigin = 'https://learn-zh.jim-aca.workers.dev'
+			const origin = request.headers.get('Origin') ?? ''
+			const referer = request.headers.get('Referer') ?? ''
+			if (!origin.startsWith(allowedOrigin) && !referer.startsWith(allowedOrigin)) {
+				return Response.json({ error: 'Forbidden' }, { status: 403 })
+			}
+			const { text, control } = await request.json() as {
+				text: string
+				control?: string
+			}
+			if (!text || typeof text !== 'string') {
+				return Response.json({ error: 'text required' }, { status: 400 })
+			}
+			try {
+				const audioBuffer = await generateVoxCpmAudio(text, {
+					spaceUrl: env.VOXCPM_SPACE_URL,
+					control: typeof control === 'string' ? control : '',
+				})
+				return new Response(audioBuffer, {
+					headers: {
+						'Content-Type': 'audio/mpeg',
+						'Cache-Control': 'no-store',
+					},
+				})
+			} catch (error) {
+				const message = error instanceof Error ? error.message : 'VoxCPM TTS failed'
+				return Response.json({ error: message }, { status: 502 })
+			}
 		}
 
 		if (url.pathname === '/api/situations/questions') {
@@ -147,6 +194,15 @@ export default {
 		return new Response(null, { status: 404 })
 	},
 } satisfies ExportedHandler<Env>
+
+function escapeXml(text: string): string {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&apos;')
+}
 
 interface VoxCpmOptions {
 	spaceUrl?: string
@@ -266,15 +322,6 @@ async function readLimitedText(response: Response, limit: number): Promise<strin
 
 function normalizeSpaceUrl(spaceUrl?: string): string {
 	return (spaceUrl || DEFAULT_VOXCPM_SPACE_URL).replace(/\/+$/, '')
-}
-
-function controlFromRate(rate?: string): string {
-	if (!rate) return ''
-	const value = Number.parseFloat(rate)
-	if (Number.isNaN(value)) return ''
-	if (value < 0) return 'slow, clear Mandarin pronunciation'
-	if (value > 0) return 'natural Mandarin pronunciation with a slightly faster pace'
-	return ''
 }
 
 interface ImageRequestPayload {

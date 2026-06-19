@@ -113,6 +113,11 @@ const router = createRouter({
       component: () => import('../views/VoiceInstallGuidePage.vue'),
     },
     {
+      path: '/voxcpm-tts',
+      name: 'voxcpm-tts',
+      component: () => import('../views/VoxCpmTtsPage.vue'),
+    },
+    {
       path: '/flashcards/body',
       name: 'flashcards-body',
       component: () => import('../views/FlashCardQuizPage.vue'),
