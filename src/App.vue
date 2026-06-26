@@ -1,16 +1,83 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import QRCode from 'qrcode'
 import HelloWorld from './components/HelloWorld.vue'
 import { useSpeechAvailability } from './composables/useSpeechAvailability'
 
-const linkClass =
-	'inline-block border-l border-stone-200 px-4 py-0.5 text-xs text-zinc-600 no-underline transition first:border-0 first:pl-0 hover:bg-emerald-500/15 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-emerald-400/10'
-const exactActiveClass = 'font-medium text-zinc-900 hover:bg-transparent dark:text-zinc-100 dark:hover:bg-transparent'
+// ── Navigation (grouped) ───────────────────────────────────────────────────────
+type NavLink = { label: string; emoji: string; to?: string; href?: string }
+type NavGroup = { label: string; links: NavLink[] }
+
+const navGroups: NavGroup[] = [
+	{
+		label: '看圖學說話',
+		links: [
+			{ label: 'AI 圖片學', emoji: '📷', to: '/what-is-this' },
+			{ label: '字卡', emoji: '🃏', to: '/flashcards/body' },
+			{ label: '情境識別', emoji: '🎭', to: '/situations' },
+			{ label: '自訂朗讀', emoji: '🎙️', to: '/custom' },
+		],
+	},
+	{
+		label: '注音字母',
+		links: [
+			{ label: '注音符號', emoji: '🀄', to: '/bopomofo-quiz' },
+			{ label: '英文字母', emoji: '🔡', to: '/alphabet-quiz' },
+			{ label: '注音閃卡', emoji: '🀄', href: 'https://filedn.eu/ldt9Roov20oh8G5emLf3VCj/tools/MPS.html' },
+			{ label: '注音符號表', emoji: '📋', href: 'https://www.ifreesite.com/bopomofo-edu-2.htm' },
+		],
+	},
+	{
+		label: '地圖交通',
+		links: [
+			{ label: '語音選站名', emoji: '🎧', to: '/mrt-quiz' },
+			{ label: '縣市地圖', emoji: '🗺️', to: '/taiwan-map-quiz' },
+			{ label: '火車站', emoji: '🚆', to: '/train-station-quiz' },
+			{ label: '站名學習', emoji: '🚇', to: '/bannan-line-quiz' },
+		],
+	},
+	{
+		label: '生活工具',
+		links: [
+			{ label: '兌幣練習', emoji: '🪙', href: 'https://freemath-5yx.pages.dev/coin-exchange' },
+			{ label: '萌典', emoji: '📚', href: 'https://www.moedict.tw' },
+		],
+	},
+]
+
+const topLinkClass = 'rounded-md px-3 py-1 text-sm text-zinc-600 no-underline transition hover:bg-emerald-500/15 dark:text-zinc-300 dark:hover:bg-emerald-400/10'
+const topExactActiveClass = 'font-medium text-zinc-900 hover:bg-transparent dark:text-zinc-100'
+const groupBtnClass = 'flex items-center gap-1 rounded-md px-3 py-1 text-sm text-zinc-600 transition hover:bg-emerald-500/15 dark:text-zinc-300 dark:hover:bg-emerald-400/10'
+const groupBtnActiveClass = 'font-medium text-zinc-900 dark:text-zinc-100'
+const dropdownItemClass = 'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-700 no-underline transition hover:bg-emerald-500/10 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-emerald-400/10 dark:hover:text-zinc-100'
+const dropdownExactActiveClass = 'bg-emerald-500/10 font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
 const mobileItemClass = 'block rounded-lg px-3 py-2.5 text-center text-sm font-medium text-zinc-700 no-underline transition hover:bg-emerald-500/10 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-emerald-400/10 dark:hover:text-zinc-100'
 const mobileExactActiveClass = 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
+const mobileGroupLabelClass = 'col-span-2 px-1 pb-1 pt-3 text-xs font-semibold tracking-wide text-zinc-400 dark:text-zinc-500'
+
+const route = useRoute()
 const menuOpen = ref(false)
+const openGroup = ref<string | null>(null)
+
+function isGroupActive(group: NavGroup) {
+	return group.links.some(link => link.to && link.to === route.path)
+}
+
+function toggleGroup(label: string) {
+	openGroup.value = openGroup.value === label ? null : label
+}
+
+function closeMenus() {
+	openGroup.value = null
+}
+
+// Close any open desktop dropdown / mobile menu on navigation
+watch(() => route.path, () => {
+	openGroup.value = null
+	menuOpen.value = false
+})
+
 const { voicePlaybackBlocked } = useSpeechAvailability()
 
 // ── PWA Install ───────────────────────────────────────────────────────────────
@@ -27,6 +94,8 @@ onMounted(() => {
 		deferredPrompt.value = null
 		showInstall.value = false
 	})
+	// Click anywhere outside an open dropdown closes it
+	window.addEventListener('click', closeMenus)
 })
 
 async function installPWA() {
@@ -45,6 +114,7 @@ watchEffect(() => {
 })
 
 onBeforeUnmount(() => {
+	window.removeEventListener('click', closeMenus)
 	if (typeof document === 'undefined') return
 	const appRoot = document.getElementById('app')
 	if (!appRoot) return
@@ -177,49 +247,86 @@ async function shareQR() {
 					</div>
 				</div>
 
-				<!-- ── Mobile dropdown panel ── -->
+				<!-- ── Mobile dropdown panel (grouped) ── -->
 				<div
 					v-if="menuOpen"
 					class="mt-2 rounded-xl border border-stone-200 bg-stone-50/98 shadow-lg md:hidden dark:border-zinc-700 dark:bg-zinc-900/98"
 				>
-					<div class="grid grid-cols-2 gap-0.5 p-2">
-						<RouterLink @click="menuOpen = false" to="/" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">首頁</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/what-is-this" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">AI 圖片學</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/flashcards/body" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">字卡</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/mrt-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">語音選站名</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/bopomofo-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">注音符號</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/alphabet-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">英文字母</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/custom" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">自訂朗讀</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/taiwan-map-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">縣市地圖</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/train-station-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">火車站</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/bannan-line-quiz" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">站名學習</RouterLink>
-						<RouterLink @click="menuOpen = false" to="/situations" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">情境識別</RouterLink>
-						<a @click="menuOpen = false" href="https://filedn.eu/ldt9Roov20oh8G5emLf3VCj/tools/MPS.html" target="_blank" rel="noopener" :class="mobileItemClass">注音閃卡 ↗</a>
-						<a @click="menuOpen = false" href="https://www.ifreesite.com/bopomofo-edu-2.htm" target="_blank" rel="noopener" :class="mobileItemClass">注音符號表 ↗</a>
-						<a @click="menuOpen = false" href="https://freemath-5yx.pages.dev/coin-exchange" target="_blank" rel="noopener" :class="mobileItemClass">兌幣練習 ↗</a>
-						<a @click="menuOpen = false" href="https://www.moedict.tw" target="_blank" rel="noopener" :class="mobileItemClass">萌典 ↗</a>
-						<RouterLink @click="menuOpen = false" to="/about" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">關於</RouterLink>
+					<div class="p-2">
+						<RouterLink @click="menuOpen = false" to="/" :class="mobileItemClass" :exact-active-class="mobileExactActiveClass">🏠 首頁</RouterLink>
+						<div v-for="group in navGroups" :key="group.label" class="grid grid-cols-2 gap-0.5">
+							<p :class="mobileGroupLabelClass">{{ group.label }}</p>
+							<template v-for="link in group.links" :key="link.label">
+								<RouterLink
+									v-if="link.to"
+									@click="menuOpen = false"
+									:to="link.to"
+									:class="mobileItemClass"
+									:exact-active-class="mobileExactActiveClass"
+								>{{ link.emoji }} {{ link.label }}</RouterLink>
+								<a
+									v-else
+									@click="menuOpen = false"
+									:href="link.href"
+									target="_blank"
+									rel="noopener"
+									:class="mobileItemClass"
+								>{{ link.emoji }} {{ link.label }} ↗</a>
+							</template>
+						</div>
+						<RouterLink @click="menuOpen = false" to="/about" :class="[mobileItemClass, 'mt-3']" :exact-active-class="mobileExactActiveClass">ℹ️ 關於</RouterLink>
 					</div>
 				</div>
 
-				<!-- ── Desktop: inline links (≥ md) ── -->
-				<div class="hidden md:flex md:w-full md:flex-wrap md:items-center md:justify-center">
-					<RouterLink to="/" :class="linkClass" :exact-active-class="exactActiveClass">首頁</RouterLink>
-					<RouterLink to="/what-is-this" :class="linkClass" :exact-active-class="exactActiveClass">AI 圖片學</RouterLink>
-					<RouterLink to="/flashcards/body" :class="linkClass" :exact-active-class="exactActiveClass">字卡</RouterLink>
-					<RouterLink to="/mrt-quiz" :class="linkClass" :exact-active-class="exactActiveClass">語音選站名</RouterLink>
-					<RouterLink to="/bopomofo-quiz" :class="linkClass" :exact-active-class="exactActiveClass">注音符號</RouterLink>
-					<RouterLink to="/alphabet-quiz" :class="linkClass" :exact-active-class="exactActiveClass">英文字母</RouterLink>
-					<RouterLink to="/custom" :class="linkClass" :exact-active-class="exactActiveClass">自訂朗讀</RouterLink>
-					<RouterLink to="/taiwan-map-quiz" :class="linkClass" :exact-active-class="exactActiveClass">縣市地圖</RouterLink>
-					<RouterLink to="/train-station-quiz" :class="linkClass" :exact-active-class="exactActiveClass">火車站</RouterLink>
-					<RouterLink to="/bannan-line-quiz" :class="linkClass" :exact-active-class="exactActiveClass">站名學習</RouterLink>
-					<RouterLink to="/situations" :class="linkClass" :exact-active-class="exactActiveClass">情境識別</RouterLink>
-					<a href="https://filedn.eu/ldt9Roov20oh8G5emLf3VCj/tools/MPS.html" target="_blank" rel="noopener" :class="linkClass">注音閃卡</a>
-					<a href="https://www.ifreesite.com/bopomofo-edu-2.htm" target="_blank" rel="noopener" :class="linkClass">注音符號表</a>
-					<a href="https://freemath-5yx.pages.dev/coin-exchange" target="_blank" rel="noopener" :class="linkClass">兌幣練習</a>
-					<a href="https://www.moedict.tw" target="_blank" rel="noopener" :class="linkClass">萌典</a>
-					<RouterLink to="/about" :class="linkClass" :exact-active-class="exactActiveClass">關於</RouterLink>
+				<!-- ── Desktop: grouped dropdowns (≥ md) ── -->
+				<div class="hidden md:flex md:w-full md:flex-wrap md:items-center md:justify-center md:gap-1">
+					<RouterLink to="/" :class="topLinkClass" :exact-active-class="topExactActiveClass">首頁</RouterLink>
+					<div v-for="group in navGroups" :key="group.label" class="relative" @click.stop>
+						<button
+							type="button"
+							:class="[groupBtnClass, isGroupActive(group) && groupBtnActiveClass]"
+							@click="toggleGroup(group.label)"
+						>
+							{{ group.label }}
+							<svg
+								xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+								class="size-3 shrink-0 transition-transform"
+								:class="openGroup === group.label && 'rotate-180'"
+							>
+								<polyline points="6 9 12 15 18 9" />
+							</svg>
+						</button>
+						<Transition name="fade">
+							<div
+								v-if="openGroup === group.label"
+								class="absolute left-1/2 top-full z-[1100] mt-1.5 w-44 -translate-x-1/2 rounded-xl border border-stone-200 bg-stone-50/98 p-1.5 shadow-lg dark:border-zinc-700 dark:bg-zinc-900/98"
+							>
+								<template v-for="link in group.links" :key="link.label">
+									<RouterLink
+										v-if="link.to"
+										:to="link.to"
+										:class="dropdownItemClass"
+										:exact-active-class="dropdownExactActiveClass"
+										@click="openGroup = null"
+									>
+										<span class="text-base">{{ link.emoji }}</span>{{ link.label }}
+									</RouterLink>
+									<a
+										v-else
+										:href="link.href"
+										target="_blank"
+										rel="noopener"
+										:class="dropdownItemClass"
+										@click="openGroup = null"
+									>
+										<span class="text-base">{{ link.emoji }}</span>{{ link.label }}
+										<span class="ml-auto text-xs text-zinc-400 dark:text-zinc-500">↗</span>
+									</a>
+								</template>
+							</div>
+						</Transition>
+					</div>
+					<RouterLink to="/about" :class="topLinkClass" :exact-active-class="topExactActiveClass">關於</RouterLink>
 					<button
 						type="button"
 						class="ml-3 flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-xs text-zinc-600 transition hover:border-emerald-500/60 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-emerald-400/50 dark:hover:text-zinc-100"
@@ -286,3 +393,14 @@ async function shareQR() {
 		</div>
 	</Transition>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+</style>
