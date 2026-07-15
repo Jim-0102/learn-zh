@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - master
       - early-intervation-for-fork
 jobs:
   deploy:
