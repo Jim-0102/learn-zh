@@ -67,6 +67,27 @@
 				<p class="mb-3 leading-relaxed text-stone-600 dark:text-zinc-300">
 					使用說明：按「開始朗讀」播放，按「停止朗讀」可立即停止。語音會優先使用 zh-TW 與台灣相關語音。
 				</p>
+				<div class="mb-3">
+					<div class="mb-2 text-sm font-medium text-stone-700 dark:text-zinc-300">朗讀速度</div>
+					<div class="flex flex-wrap gap-2" role="group" aria-label="朗讀速度">
+						<button
+							v-for="option in speechSpeedOptions"
+							:key="option.value"
+							type="button"
+							class="rounded-md border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+							:class="selectedSpeechRate === option.value
+								? 'border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-500'
+								: 'border-stone-300 bg-white text-stone-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700'"
+							:aria-pressed="selectedSpeechRate === option.value"
+							@click="selectedSpeechRate = option.value"
+						>
+							{{ option.label }}
+						</button>
+					</div>
+					<p class="mt-1.5 text-xs text-stone-500 dark:text-zinc-400">
+						{{ isSpeaking ? '目前朗讀完成後，所選速度會套用於下一次朗讀。' : '開始朗讀時會使用所選速度。' }}
+					</p>
+				</div>
 				<div class="flex flex-wrap items-center gap-3">
 					<button
 						type="button"
@@ -159,6 +180,13 @@ const inputLang = ref<'zh-TW' | 'en-US'>('zh-TW')
 
 const isSpeaking = ref(false)
 const { voicePlaybackAvailable, voicePlaybackBlocked } = useSpeechAvailability()
+const speechSpeedOptions = [
+	{ label: '0.5倍速', value: 0.5 },
+	{ label: '0.75倍速', value: 0.75 },
+	{ label: '1倍速', value: 1 },
+	{ label: '1.25倍速', value: 1.25 },
+] as const
+const selectedSpeechRate = ref<number>(1)
 
 const AZURE_FALLBACK_KEY = 'azure_tts_fallback_until'
 const azureFallbackActive = ref(false)
@@ -282,7 +310,7 @@ const createUtterance = async () => {
 	const isEn = inputLang.value === 'en-US'
 	const utterance = new SpeechSynthesisUtterance(rawText.value)
 	utterance.lang = inputLang.value
-	utterance.rate = isEn ? 1.0 : 0.9
+	utterance.rate = selectedSpeechRate.value
 	const keywords = isEn ? EN_US_PREFERRED_KEYWORDS : ZH_TW_PREFERRED_KEYWORDS
 	const preferredVoice = getPreferredVoice(inputLang.value, keywords, voices)
 	if (preferredVoice) { utterance.voice = preferredVoice; utterance.lang = preferredVoice.lang }
@@ -307,10 +335,12 @@ const toggleSpeech = async () => {
 	if (inputLang.value === 'zh-TW' && !azureFallbackActive.value) {
 		isSpeaking.value = true
 		try {
+			const ratePercent = Math.round((selectedSpeechRate.value - 1) * 100)
+			const rate = ratePercent === 0 ? undefined : `${ratePercent > 0 ? '+' : ''}${ratePercent}%`
 			const res = await fetch('/api/tts', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ text: rawText.value }),
+				body: JSON.stringify({ text: rawText.value, ...(rate ? { rate } : {}) }),
 			})
 			if (res.status === 429) {
 				setAzureFallback()
@@ -405,3 +435,4 @@ onBeforeUnmount(() => {
 	stopListeningInput()
 })
 </script>
+
